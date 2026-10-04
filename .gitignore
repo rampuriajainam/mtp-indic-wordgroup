@@ -1,0 +1,6 @@
+.venv/
+checkpoints/
+__pycache__/
+*.pyc
+training_log.txt
+lora_test_checkpoint/
