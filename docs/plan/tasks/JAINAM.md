@@ -43,11 +43,11 @@ Recommended path: pilot S2 and S3 (and S2+S3) on 2,000-step runs, pick the best 
 - Data: boundary cache via `datasets.load_from_disk` + Om's `Collator`. NTP/MTP runs without group losses ignore the group columns.
 - Loop: `autocast_ctx` + `GradScaler` from `mtp.device`, optional grad accumulation, clip 1.0, `MetricLogger` every 20 steps (each loss term, each weight), eval on `eval_small` every `eval_every`, `save_run` every `save_every`. On `--resume auto`: `latest_step` → restore model, optimizer, scaler, RNG, data position.
 - Deterministic: seed everything, and record git commit hash in `config.yaml`.
-- `configs/`: write `R0.yaml` … `R10.yaml` and `pilot_S2.yaml`, `pilot_S3.yaml`, `pilot_S23.yaml`.
+- `configs/`: write `R0.yaml` … `R10.yaml` and `pilot_S2.yaml`, `pilot_S3.yaml`, `pilot_S3chain.yaml`, `pilot_S23.yaml`, `pilot_S3all.yaml` (see `docs/design_structural_loss.md`).
 
 ## JN-4 · Reproduce baselines on Kaggle
 - R0 (NTP) and R1 (MTP k=2 linear) through `train.py` on Kaggle. **Gate:** within ~0.05 of the laptop numbers (3.05 / 3.09 / 5.84). If not, the difference is in dtype handling (fp16 vs bf16), data order or masking, so find it before moving on.
-- R2 (k=4 resblock). Expect head 1 to start near head 0's loss thanks to the zero-init, not at 8.1. This is our real token-level baseline.
+- R2 (k=4 resblock). This is our real token-level baseline. Note: zero-init makes head d start as a *copy* of head 0, so it still predicts t+1 for a t+d+1 target. Measured at init on `eval_small` (JN-1): h0 3.08, h1 9.37, h2 10.59, h3 10.95 (random linear heads: ~10.5 each). Expect head 1 to fall faster than in R1 (12.6M vs 184M new params, shared `lm_head`), not to start near head 0.
 - Publish each finished run as a Kaggle Dataset `mtp-run-<ID>` and post the name for Om.
 
 ## JN-5 · Structural loss
