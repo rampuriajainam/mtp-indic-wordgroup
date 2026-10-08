@@ -1,0 +1,123 @@
+"""
+Multi-token prediction heads on top of a causal LM (INTERFACES §5).
+
+Head 0 is the base model's own LM head (next token). Heads 1..k-1 predict
+tokens further ahead; head d at position t predicts the token at t+d+1.
+All heads read the same last hidden state h (after the final norm).
+
+head_type="linear"   : head d = fresh nn.Linear(hidden, vocab), random init.
+                       Same as the old MedusaWrapper; used to reproduce R1.
+head_type="resblock" : Medusa-1. h_d = ResBlock^n(h), logits_d = lm_head(h_d),
+                       with ResBlock(x) = x + SiLU(W x + b) and W, b zero-init,
+                       so every head starts as an exact copy of head 0. The
+                       base lm_head is shared (frozen under LoRA), so each
+                       extra head costs only n_layers * (hidden^2 + hidden).
+"""
+
+from dataclasses import dataclass, field
+
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+HEAD_TYPES = ("linear", "resblock")
+
+
+@dataclass
+class MTPOutput:
+    logits: list[torch.Tensor]   # length k; logits[i] is [B, T, V]; head i predicts token t+i+1
+    hidden: torch.Tensor         # [B, T, H] last hidden state (for contrastive loss)
+    aux: dict = field(default_factory=dict)
+    # aux["head_hidden"]: list of k tensors [B, T, H], the state each head's
+    #   output layer reads (h_0 = hidden). Structural-loss probes sit on these.
+    # aux["past_key_values"]: present only when forward(use_cache=True).
+
+
+class ResBlock(nn.Module):
+    """x + SiLU(W x + b), zero-initialised so it starts as the identity."""
+
+    def __init__(self, hidden_size, dtype=None, device=None):
+        super().__init__()
+        self.linear = nn.Linear(hidden_size, hidden_size, dtype=dtype, device=device)
+        nn.init.zeros_(self.linear.weight)
+        nn.init.zeros_(self.linear.bias)
+
+    def forward(self, x):
+        return x + F.silu(self.linear(x))
+
+
+class MTPModel(nn.Module):
+    """
+    Wraps a HF causal LM (optionally PEFT/LoRA-wrapped) with k prediction heads.
+
+    num_heads counts ALL heads including head 0 (num_heads = num_extra_heads + 1).
+    Extra heads live in self.extra_heads (len num_heads - 1); that ModuleList
+    is what checkpoints save next to the LoRA adapter.
+    """
+
+    def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1, **kw):
+        super().__init__()
+        if num_heads < 1:
+            raise ValueError(f"num_heads must be >= 1, got {num_heads}")
+        if head_type not in HEAD_TYPES:
+            raise ValueError(f"head_type must be one of {HEAD_TYPES}, got {head_type!r}")
+        if n_layers < 1:
+            raise ValueError(f"n_layers must be >= 1, got {n_layers}")
+
+        self.base_model = base_model
+        self.num_heads = num_heads
+        self.head_type = head_type
+        self.n_layers = n_layers
+
+        lm_head = self._lm_head()
+        hidden_size = lm_head.in_features
+        vocab_size = lm_head.out_features
+        # Match the base weights' dtype/device; mtp.device decides what that is.
+        factory = {"dtype": lm_head.weight.dtype, "device": lm_head.weight.device}
+
+        if head_type == "linear":
+            self.extra_heads = nn.ModuleList([
+                nn.Linear(hidden_size, vocab_size, bias=False, **factory)
+                for _ in range(num_heads - 1)
+            ])
+        else:
+            self.extra_heads = nn.ModuleList([
+                nn.Sequential(*[ResBlock(hidden_size, **factory) for _ in range(n_layers)])
+                for _ in range(num_heads - 1)
+            ])
+
+    # The decoder and lm_head are looked up through base_model on every call
+    # rather than stored, so they are not registered twice in state_dict().
+    # PEFT forwards attribute access to the wrapped model, and LoRA layers are
+    # injected in place, so calling the inner decoder still applies LoRA.
+    def _decoder(self):
+        return self.base_model.get_decoder()
+
+    def _lm_head(self):
+        return self.base_model.get_output_embeddings()
+
+    def forward(self, input_ids, attention_mask=None, use_cache: bool = False, **kw) -> MTPOutput:
+        out = self._decoder()(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            use_cache=use_cache,
+            **kw,
+        )
+        hidden = out.last_hidden_state  # after the final norm, same input lm_head sees
+        lm_head = self._lm_head()
+
+        logits = [lm_head(hidden)]
+        head_hidden = [hidden]
+        for head in self.extra_heads:
+            if self.head_type == "linear":
+                logits.append(head(hidden))
+                head_hidden.append(hidden)
+            else:
+                h_d = head(hidden)
+                logits.append(lm_head(h_d))
+                head_hidden.append(h_d)
+
+        aux = {"head_hidden": head_hidden}
+        if use_cache:
+            aux["past_key_values"] = out.past_key_values
+        return MTPOutput(logits=logits, hidden=hidden, aux=aux)
