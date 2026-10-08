@@ -35,6 +35,8 @@ class MTPOutput:
     aux: dict = field(default_factory=dict)
     # aux["head_hidden"]: list of k tensors [B, T, H], the state each head's
     #   output layer reads (h_0 = hidden). Structural-loss probes sit on these.
+    # aux["boundary_logits"]: list of k tensors [B, T], present when the model has
+    #   boundary probes (S2): logit that token t+d+1 starts a new word group.
     # aux["past_key_values"]: present only when forward(use_cache=True).
 
 
@@ -56,12 +58,15 @@ class MTPModel(nn.Module):
     Wraps a HF causal LM (optionally PEFT/LoRA-wrapped) with k prediction heads.
 
     num_heads counts ALL heads including head 0 (num_heads = num_extra_heads + 1).
-    Extra heads live in self.extra_heads (len num_heads - 1); that ModuleList
-    is what checkpoints save next to the LoRA adapter.
+    Extra heads live in self.extra_heads (len num_heads - 1). With
+    boundary_probes=True every head d also gets a linear probe on h_d
+    (self.boundary_probes, len num_heads) for the S2 structural loss and the
+    GroupAware draft policy. Checkpoints save head_state_dict(): everything
+    except the base model.
     """
 
     def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1,
-                 backbone_grad: float = 1.0, **kw):
+                 backbone_grad: float = 1.0, boundary_probes: bool = False, **kw):
         super().__init__()
         if num_heads < 1:
             raise ValueError(f"num_heads must be >= 1, got {num_heads}")
@@ -94,6 +99,24 @@ class MTPModel(nn.Module):
                 nn.Sequential(*[ResBlock(hidden_size, **factory) for _ in range(n_layers)])
                 for _ in range(num_heads - 1)
             ])
+        self.boundary_probes = nn.ModuleList(
+            [nn.Linear(hidden_size, 1, **factory) for _ in range(num_heads)] if boundary_probes else []
+        )
+
+    def head_state_dict(self):
+        """Trainable non-base parameters (extra heads + probes), for heads.pt."""
+        return {k: v for k, v in self.state_dict().items() if not k.startswith("base_model.")}
+
+    def load_head_state_dict(self, state):
+        """Inverse of head_state_dict. Also accepts the legacy MedusaWrapper /
+        extra_heads-only format ("0.weight", ...)."""
+        if state and not any(k.startswith(("extra_heads.", "boundary_probes.")) for k in state):
+            state = {f"extra_heads.{k}": v for k, v in state.items()}
+        own = self.head_state_dict()
+        missing, unexpected = own.keys() - state.keys(), state.keys() - own.keys()
+        if missing or unexpected:
+            raise KeyError(f"head state mismatch: missing {sorted(missing)[:3]}, unexpected {sorted(unexpected)[:3]}")
+        self.load_state_dict(state, strict=False)
 
     # The decoder and lm_head are looked up through base_model on every call
     # rather than stored, so they are not registered twice in state_dict().
@@ -129,6 +152,8 @@ class MTPModel(nn.Module):
                 head_hidden.append(h_d)
 
         aux = {"head_hidden": head_hidden}
+        if len(self.boundary_probes):
+            aux["boundary_logits"] = [probe(h).squeeze(-1) for probe, h in zip(self.boundary_probes, head_hidden)]
         if use_cache:
             aux["past_key_values"] = out.past_key_values
         return MTPOutput(logits=logits, hidden=hidden, aux=aux)

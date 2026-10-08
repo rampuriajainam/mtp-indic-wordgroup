@@ -11,7 +11,7 @@ lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}
 optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 2000, grad_accum: 1, weight_decay: 0.01}
 data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: hi_rules_v1, max_length: 128, eval_n: 100}
 losses:
-  structural: {enabled: true, variant: S23, weight: 1.0, lambda_s2: 0.1, lambda_s3: 0.5}
+  structural: {enabled: true, variant: S23, weight: 1.0, lambda_s2: 0.1, lambda_s3: 0.5, s3_teacher: h0}  # set to the better S3 teacher
   contrastive: {enabled: false, weight: 0.05, temperature: 0.1}
 weighting: {scheme: fixed, head_decay: 0.8}
 log_every: 20

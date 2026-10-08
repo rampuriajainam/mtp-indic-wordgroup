@@ -129,8 +129,59 @@ def test_group_losses_need_cache(tmp_path):
     cfg.losses.structural.enabled = True
     with pytest.raises(FileNotFoundError):
         train_mod.build_data(cfg, tokenizer=None)
+    cfg.losses.structural.variant = "TBD"
+    with pytest.raises(ValueError):
+        train_mod.build_aux_losses(cfg)
+    cfg.losses.structural.enabled = False
+    cfg.losses.contrastive.enabled = True
     with pytest.raises(NotImplementedError):
         train_mod.build_aux_losses(cfg)
+
+
+def with_groups(examples, seed=0):
+    g = torch.Generator().manual_seed(seed)
+    for e in examples:
+        n = len(e["input_ids"])
+        start = [1] + (torch.rand(n - 1, generator=g) < 0.6).long().tolist()
+        e["group_start"] = start
+        e["group_id"] = torch.tensor(start).cumsum(0).sub(1).tolist()
+    return examples
+
+
+@pytest.mark.parametrize("variant", ["S2", "S3_h0", "S3_chain", "S3_all", "S23"])
+def test_train_with_structural_loss_and_resume(tmp_path, variant):
+    cfg = make_cfg(tmp_path)
+    cfg.losses.structural.enabled = True
+    cfg.losses.structural.variant = variant
+    cfg.optim.max_steps = 4
+
+    def go(run_dir, max_steps, resume="none"):
+        cfg.optim.max_steps = max_steps
+        train_mod.seed_everything(cfg.seed)
+        torch.manual_seed(cfg.seed)
+        base_model, tok = make_model(cfg)
+        model = MTPModel(base_model.base_model, num_heads=cfg.num_heads, head_type=cfg.head_type,
+                         boundary_probes=train_mod.uses_probes(cfg))
+        train_mod.train(cfg, model, tok, with_groups(make_examples(20)), with_groups(make_examples(5, seed=1)),
+                        run_dir, resume=resume)
+        return model
+
+    model = go(tmp_path / "run", 4)
+    rows = [json.loads(l) for l in (tmp_path / "run" / "metrics.jsonl").read_text().splitlines()]
+    struct = {r["name"] for r in rows if r["name"].startswith("struct/")}
+    assert struct, rows[:5]
+    assert all(r["value"] == r["value"] for r in rows)
+    if variant in ("S2", "S23"):
+        assert len(model.boundary_probes) == cfg.num_heads
+        assert any(k.startswith("boundary_probes.") for k in torch.load(tmp_path / "run" / "step_4" / "heads.pt", weights_only=True))
+        w = {r["name"]: r["value"] for r in rows if r["name"].startswith("weight/struct/boundary")}
+        assert w and all(v == pytest.approx(0.1) for v in w.values())
+
+    split = go(tmp_path / "split", 2)
+    resumed = go(tmp_path / "split", 4, resume="auto")
+    a, b = trainable_state(model), trainable_state(resumed)
+    for name in a:
+        torch.testing.assert_close(a[name], b[name], rtol=0, atol=0, msg=name)
 
 
 def test_batch_at_is_deterministic():

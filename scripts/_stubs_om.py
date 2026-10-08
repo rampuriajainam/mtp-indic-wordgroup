@@ -174,7 +174,7 @@ def save_run(run_dir, model, cfg, step, optimizer=None, weighting=None, keep_las
     if not (run_dir / "config.yaml").exists():
         save_config(cfg, run_dir / "config.yaml")
     model.base_model.save_pretrained(step_dir / "lora")
-    torch.save(model.extra_heads.state_dict(), step_dir / "heads.pt")
+    torch.save(model.head_state_dict(), step_dir / "heads.pt")  # extra heads + boundary probes
     if weighting is not None:
         torch.save(weighting.state_dict(), step_dir / "weighting.pt")
     if optimizer is not None:

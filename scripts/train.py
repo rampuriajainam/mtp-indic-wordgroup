@@ -66,6 +66,7 @@ except ImportError:
     from _stubs_om import latest_step, save_run
 
 from mtp.losses.mtp_ce import per_head_ce, shift_targets
+from mtp.losses.structural import StructuralLoss, needs_boundary_probes
 from mtp.losses.weighting import LossWeighting
 from mtp.model.heads import MTPModel
 
@@ -113,17 +114,36 @@ def build_model(cfg, device):
     ))
     model = MTPModel(base, num_heads=cfg.num_heads, head_type=cfg.head_type,
                      n_layers=cfg_get(cfg, "head_layers", 1),
-                     backbone_grad=cfg_get(cfg, "head_backbone_grad", 1.0))
+                     backbone_grad=cfg_get(cfg, "head_backbone_grad", 1.0),
+                     boundary_probes=uses_probes(cfg))
     return model, tokenizer
+
+
+def uses_probes(cfg):
+    return bool(cfg_get(cfg, "losses.structural.enabled", False)
+                and needs_boundary_probes(cfg_get(cfg, "losses.structural.variant")))
 
 
 def build_aux_losses(cfg):
     """Callables (mtp_output, batch) -> dict[name, scalar], each with .term_names."""
+    losses = []
     if cfg_get(cfg, "losses.structural.enabled", False):
-        raise NotImplementedError("structural loss lands with JN-5")
+        losses.append(StructuralLoss(cfg_get(cfg, "losses.structural.variant"), cfg.num_heads,
+                                     s3_teacher=cfg_get(cfg, "losses.structural.s3_teacher", "h0")))
     if cfg_get(cfg, "losses.contrastive.enabled", False):
         raise NotImplementedError("contrastive loss lands with JN-6")
-    return []
+    return losses
+
+
+def aux_weights(cfg):
+    """Fixed weights by term-name prefix (LossWeighting picks the longest match)."""
+    w = cfg_get(cfg, "losses.structural.weight", 1.0)
+    return {
+        "struct": w,
+        "struct/boundary_bce": w * cfg_get(cfg, "losses.structural.lambda_s2", 0.1),
+        "struct/consistency": w * cfg_get(cfg, "losses.structural.lambda_s3", 0.5),
+        "contrastive": cfg_get(cfg, "losses.contrastive.weight", 1.0),
+    }
 
 
 def needs_groups(cfg):
@@ -237,7 +257,7 @@ def restore_checkpoint(run_dir, step, model, optimizer, scaler, weighting):
     missing = [k for k in result.missing_keys if "lora_" in k]
     if missing:
         raise RuntimeError(f"LoRA weights missing from {step_dir}: {missing[:3]}...")
-    model.extra_heads.load_state_dict(torch.load(step_dir / "heads.pt", weights_only=True))
+    model.load_head_state_dict(torch.load(step_dir / "heads.pt", weights_only=True))
     if (step_dir / "weighting.pt").exists():
         weighting.load_state_dict(torch.load(step_dir / "weighting.pt", weights_only=True))
     # Our own file; RNG states need full unpickling.
@@ -268,8 +288,7 @@ def train(cfg, model, tokenizer, train_examples, eval_examples, run_dir, resume=
     weighting = LossWeighting(
         cfg_get(cfg, "weighting.scheme", "fixed"), term_names,
         head_decay=cfg_get(cfg, "weighting.head_decay", 0.8),
-        aux_weights={"struct": cfg_get(cfg, "losses.structural.weight", 1.0),
-                     "contrastive": cfg_get(cfg, "losses.contrastive.weight", 1.0)},
+        aux_weights=aux_weights(cfg),
     ).to(device)
 
     model_params = [p for p in model.parameters() if p.requires_grad]

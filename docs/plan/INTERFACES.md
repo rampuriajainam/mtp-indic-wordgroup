@@ -161,6 +161,9 @@ class MTPModel(nn.Module):
 ```
 - `num_heads` counts **all** heads including head 0 (the original LM head). Current `medusa_heads.py` uses `num_extra_heads`; `num_heads = num_extra_heads + 1`.
 - `head_type`: `"linear"` (current), `"resblock"` (Medusa-1 style residual block, init so it starts as identity + the LM head).
+- Optional `__init__` kwargs (JN-1/JN-3/JN-5): `n_layers=1` (resblocks per head), `backbone_grad=1.0` (scales the gradient heads 1..k-1 send into the backbone; 0 = detached), `boundary_probes=False` (one linear probe per head for S2 / `GroupAware`).
+- `forward(..., use_cache=False)`. `aux` keys: `head_hidden` (list of k `[B, T, H]`, the state each head's output layer reads), `boundary_logits` (list of k `[B, T]`, only with probes), `past_key_values` (only with `use_cache=True`).
+- `head_state_dict()` / `load_head_state_dict(state)`: every non-base parameter (extra heads + probes). This is what `heads.pt` holds. `load_head_state_dict` also accepts the legacy `extra_heads.state_dict()` format.
 
 ## 6. Run config contract (Om builds loader, Jainam writes configs)
 
@@ -182,6 +185,7 @@ save_every: 500
 seed: 42
 dtype: auto                          # auto | bf16 | fp16 | fp32
 ```
+Optional fields `scripts/train.py` reads with defaults (JN-3; `RunConfig` must accept them): `head_layers: 1`, `head_backbone_grad: 1.0`, `optim.grad_accum: 1`, `optim.weight_decay: 0.01`, `data.eval_n: 100`, `data.eval_split: eval_small`, `losses.structural.{lambda_s2: 0.1, lambda_s3: 0.5, s3_teacher: h0}`, `weighting.head_decay: 0.8`, `log_every: 20`, `keep_steps: []`, and `git_commit` (written by train.py). CLI overrides: `apply_overrides(cfg, ["optim.lr=1e-4", ...])`.
 
 ## 7. Gold annotation format (Jai)
 
@@ -204,11 +208,12 @@ Layout:
 runs/{run_name}/
   config.yaml
   step_{N}/lora/            # PEFT save_pretrained
-  step_{N}/heads.pt         # extra heads state_dict
+  step_{N}/heads.pt         # model.head_state_dict(): extra heads + boundary probes
   step_{N}/weighting.pt     # learned loss weights, if any
   step_{N}/optim.pt         # optional, for resume
   metrics.jsonl
 ```
+`scripts/train.py` calls `save_run(..., optimizer=None, weighting=...)` and then writes `optim.pt` itself: `{"step", "optimizer", "scaler", "rng"}`. Resume restores LoRA via `set_peft_model_state_dict`, `heads.pt` via `load_head_state_dict`, then `optim.pt`.
 
 ## 9. Metrics log contract (Om builds, everyone writes)
 
