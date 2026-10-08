@@ -1,79 +1,82 @@
 # Om: Evaluation & Infrastructure
 
-> **How to use this file with Claude:** paste the "Context" block below, then `INTERFACES.md`, then the one task you're on (e.g. "Do OM-4"). Ask for the module **and** its pytest. Run the test, then open a PR on an `om/<task>` branch.
+> **How to use this file with Claude:** open Claude in the repo (it reads `CLAUDE.md`), or paste the *Context* block + `INTERFACES.md` into a chat, then name the task (e.g. "Do OM-4"). Ask for the module **and** its CPU-only pytest. Branch `om/<task>`, PR against `main`.
 
 ## Context (paste this to Claude)
 
-We are building *Word-Group Guided Multi-Token Prediction for Hindi and Marathi*. A 1B Hindi LM (`LingoIITGN/ganga-1b`, vocab 30k) is fine-tuned with PEFT LoRA (r=8, `q_proj`/`v_proj`) plus extra "Medusa-style" heads. Head i predicts the token i+1 positions ahead, and all heads read the same last hidden state. Training runs on Kaggle (T4/P100 GPUs, 16 GB, sessions that end after a time limit). My job is to make the codebase a clean, reproducible package, make it run on Kaggle with resume, and build the full evaluation suite: per-head perplexity/accuracy, self-speculative decoding speedup, and the tables and figures for the paper.
+We are building *Word-Group Guided Multi-Token Prediction for Hindi and Marathi*. A 1B Hindi LM (`LingoIITGN/ganga-1b`, vocab 30k, tokenizer adds no BOS) is fine-tuned with LoRA plus extra prediction heads: head d predicts token t+d+1 from the same last hidden state (`MTPModel`, INTERFACES §5). Word groups (multi-word units like जा रहा था) come from Jai's groupers; Jainam trains the runs on Kaggle and publishes each as a Kaggle Dataset `mtp-run-<ID>`. My job: the evaluation suite (per-head loss/accuracy split by word-group structure, self-speculative decoding with speed-up), evaluating every run, the tables and figures, and owning the infrastructure modules.
 
-Existing code (flat in the repo root, to be moved to `legacy/`): `train_ntp_baseline_final.py`, `train_mtp_baseline.py`, `medusa_heads.py`, `word_group_boundaries.py`, `boundary_alignment.py`, `validate_on_real_data.py`, `check_datasets.py`, `test_load_model.py`, `test_lora_training.py`. The training scripts share a `log()` helper that appends to a txt file, a `batchify()` that pads with `tokenizer.pad_token = eos_token`, and a per-head loss that masks padding with -100. Models load with `dtype=torch.bfloat16`, which must become configurable because Kaggle T4/P100 have no native bf16.
+Already on `main` (infra I now own, written by Jainam to unblock training):
+- `mtp/config.py` (YAML namespace, `cfg_get`, `apply_overrides`), `mtp/device.py` (bf16 only on native-bf16 GPUs; T4 → fp32 weights + fp16 autocast), `mtp/utils/logging.py`.
+- `mtp/data/corpus.py` (`load_split`), `mtp/data/collate.py` (`Collator`).
+- `mtp/model/build.py` (`build_model`), `mtp/model/checkpoint.py` (`save_run`, `latest_step`, `load_weights`, **`load_run(run_dir, device, step)`** → `(model, tokenizer, cfg)` for evaluation).
+- `mtp/data/grouping/` (`get_grouper("hi_rules_v0")`, `label_batch(texts, tokenizer, grouper)` → token labels with `group_start` / `group_id`), so the in-group split works today with no cache.
+- `scripts/train.py` has a reference `evaluate()` (token-weighted per-head CE + top-1, in-group / at-boundary split). The official evaluation must agree with it.
+- `notebooks/kaggle_train.ipynb`; `tests/conftest.py` with a tiny tokenizer and tiny model; `tests/test_infra.py` shows build → train → `load_run` on CPU.
 
----
+Kaggle notes: T4 x2; `pip uninstall -y torchao` before installing (`requirements.txt`); the repo is public (plain `git clone`). Windows: `$env:PYTHONUTF8 = "1"`.
 
-> **Priority:** OM-1 → OM-2 → OM-3 come first. Together they are handoffs H1 and H2, which training on Kaggle waits on. Post in the team chat as each one merges.
+## Tasks
 
-## OM-1 · Package skeleton + shared utilities
-**Files:** `mtp/__init__.py` and all sub-package `__init__.py`, `mtp/config.py`, `mtp/device.py`, `mtp/utils/logging.py`, `mtp/data/corpus.py`, `mtp/data/collate.py`, `requirements.txt`, `pyproject.toml` (so `pip install -e .` works), `README.md`, `legacy/`
-- `git mv` every existing root script into `legacy/` unchanged. Keep `.gitignore`, and add `runs/`, `boundary_cache/`, `wandb/`.
-- `config.py`: `RunConfig` dataclass with nested dataclasses matching INTERFACES §6. Provide `load_config(path)`, `save_config(cfg, path)`, and CLI overrides like `--set optim.lr=1e-4`.
-- `device.py`: `pick_device()`, `pick_dtype(cfg.dtype)`. For `auto`: bf16 if `torch.cuda.is_bf16_supported()`, else load weights in fp32 and train under `torch.autocast(fp16)` with `GradScaler`. Expose a context manager `autocast_ctx(cfg)` and `make_scaler(cfg)` so `train.py` and `evaluate.py` never branch on dtype themselves.
-- `logging.py`: `MetricLogger(run_dir)` with `.log(step, split, name, value)` → JSONL (INTERFACES §9), plus a pretty console line. Optional W&B mirror if `WANDB_API_KEY` is set.
-- `corpus.py`: `load_split(lang, split, n)` implementing the fixed splits in INTERFACES §4 (IndicCorp rows 0–999 = eval, ≥1000 = train, FLORES devtest), with `eval_small` = first 100.
-- `collate.py`: `Collator(pad_id)` per INTERFACES §3. It must also work when `group_*` columns are absent (plain NTP runs).
-- `requirements.txt`: pin `torch`, `transformers`, `peft`, `datasets`, `pyyaml`, `pytest`. Match the laptop venv versions (`pip freeze` there).
-- Tests: config round-trip, collate padding values, `pick_dtype` under mocked `is_bf16_supported`.
+### OM-0 · Take over the infra · P0 · S
+- Read `mtp/config.py`, `device.py`, `utils/logging.py`, `data/corpus.py`, `data/collate.py`, `model/build.py`, `model/checkpoint.py`, `notebooks/kaggle_train.ipynb`; run `python -m pytest -q`.
+- Fix or open an issue for anything wrong. From now on, changes to these go through you.
 
-## OM-2 · Checkpointing + resume
-**File:** `mtp/model/checkpoint.py` (INTERFACES §8)
-- `save_run`: PEFT `save_pretrained` for LoRA, `state_dict` for extra heads and the loss-weighting module, optimizer + scaler + RNG states for resume, and `config.yaml` once.
-- `load_run`: rebuild base model → apply LoRA → wrap `MTPModel` with `num_heads`/`head_type` from config → load heads. Use a tiny stand-in for `MTPModel` until Jainam's lands, since only the signature matters.
-- `latest_step(run_dir)`, and keep only the last 2 step folders + any folder listed in `keep_steps`.
-- Test with a tiny random `LlamaForCausalLM` config (2 layers, hidden 64, vocab 100) so it runs on CPU in seconds.
+### OM-4 · Per-head evaluation · P0 · M
+- `mtp/eval/head_accuracy.py` (+ `perplexity.py` if you prefer to split):
+  ```python
+  evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_path=None, texts=None) -> list[dict]
+  ```
+  `examples` come from `label_batch(texts, tokenizer, get_grouper(name))`. Returns one dict per head with every field of INTERFACES §10 `per_head`: loss, ppl, top1, top5, n; and top1 / loss split in-group vs at-boundary, with n per split.
+- `dump_path` writes the per-token dump (§10) that Jai uses for error analysis.
+- Datasets: `indiccorp_eval`, `indiccorp_eval_small`, `flores_hi`, later `flores_mr` (`load_split`).
+- Tests:
+  - a hand-built batch on the tiny model where you know the answer (e.g. force logits);
+  - **agreement:** on a tiny trained run, `evaluate_heads` equals `scripts/train.py`'s `evaluate` to 1e-3.
 
-## OM-3 · Kaggle training notebook
-**File:** `notebooks/kaggle_train.ipynb`
-- Cell 1: `git clone` the repo at a given branch/commit and `pip install -e .`. Read HF token and (optional) W&B key from **Kaggle Secrets**, never hard-coded.
-- Cell 2: attach Kaggle Dataset `mtp-boundary-cache` (from Jai) and set `data.cache_dir`.
-- Cell 3: `!python scripts/train.py --config configs/<RUN>.yaml --resume auto`, writing to `/kaggle/working/runs/<run_name>`.
-- Resume across sessions: at the end of a session, save `runs/<run_name>` as a Kaggle Dataset version (`kaggle datasets version`) and restore it at the start of the next. Document the 3-click process in `docs/kaggle.md`.
-- Print GPU type, dtype chosen, and estimated steps/hour at start.
+### OM-6 · Self-speculative decoding engine · P0 · L
+- `mtp/eval/spec_decode.py` with `generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None) -> (output_ids, stats)`. `mtp/eval/draft_policy.py` holds `DraftPolicy`, `FixedK`, `ConfidenceCut(tau)` and `POLICIES`; import `GroupAware` from `mtp/eval/group_aware.py` inside a `try`, since Jainam writes it (INTERFACES §11).
+- Loop:
+  1. Heads 1..k-1 at the last position propose k-1 tokens (greedy argmax).
+  2. `policy.num_draft_tokens(...)` keeps n of them.
+  3. One forward pass over context + n drafts.
+  4. Head 0 verifies left to right, accepting while its argmax equals the draft.
+  5. Always emit at least one token (head 0's prediction at the first mismatch).
+- Build `step_state` with `boundary_logits` from `aux` when the model has probes.
+- Get the no-cache version right first. Then add the KV cache: `model(..., use_cache=True)` puts `past_key_values` in `aux`; roll back rejected positions with `DynamicCache.crop`.
+- Stats: tokens generated, forward passes, mean accepted length, per-head acceptance rate, tokens/s, the same for plain greedy → speed-up. Plus **Group Integrity**: the share of accepted multi-token spans that end on a word-group boundary (run the grouper on the decoded text).
+- **Correctness test (must pass):** on the tiny model, for 20 random prompts and every policy (including a policy that proposes garbage), output ids == plain greedy ids exactly.
+- Prompts for real runs: the first 8-16 words of 200 FLORES devtest sentences, `max_new_tokens=64`, batch size 1, timed with `torch.cuda.synchronize()`.
 
-## OM-4 · Evaluation: perplexity + per-head accuracy
-**Files:** `mtp/eval/perplexity.py`, `mtp/eval/head_accuracy.py`
-- For each head i: mean shifted CE (same masking as `compute_head_loss` in `train_mtp_baseline.py`), perplexity, top-1 and top-5 accuracy.
-- **Split by structure** (needs the boundary cache columns): `top1_in_group` = targets whose `group_id` equals the source token's `group_id`, `top1_at_boundary` = the rest. Do the same for loss.
-- `--dump_tokens` writes `results/{run}/tokens_{dataset}.jsonl` with `sent_id, text, token_idx, token, head, correct, group_start, group_id` (Jai uses this for error analysis).
-- Datasets: `indiccorp_eval` (1,000), `flores_hi`, later `flores_mr`.
-- Test: tiny model, hand-built batch where you know the right answer.
+### OM-7 · `scripts/evaluate.py` + Kaggle eval notebook · P0 · M
+- `python scripts/evaluate.py --run_dir <...> [--step N] --datasets indiccorp_eval flores_hi --grouper hi_rules_v0 --spec_decode --policies fixed_k confidence_cut group_aware [--dump_tokens]`
+- Writes `results/{run_name}/eval_{dataset}.json` exactly per INTERFACES §10 (commit these).
+- `notebooks/kaggle_eval.ipynb`: attach the run's Kaggle Dataset, `git clone`, uninstall torchao, install, run the script, show the JSON. Runs on your Kaggle quota.
+- Until D1 lands, test end to end on a tiny local run (see `tests/test_infra.py`). Tonight's R0/R1/R2 will be published as `mtp-run-R0/R1/R2`.
 
-## OM-5 · Blind double annotation
-- Jai gives you 50 sentence IDs from the Hindi gold set (text only). Annotate them yourself with `scripts/annotate.py` following `docs/annotation_guide.md`, **without** looking at Jai's groups. Save as `data/gold/hi_gold_om50.jsonl`. This gives the inter-annotator agreement number in the paper.
+### OM-8 · Evaluate every run · P0 · ongoing
+- As Jainam posts each `mtp-run-<ID>`, run OM-7 on it and push the JSON. Keep `results/STATUS.md`: a checklist of runs × datasets × policies.
+- Sanity-flag anything odd: head 0 of an MTP run much worse than R0, speed-up < 1, `outputs_match_greedy` false.
 
-## OM-6 · Self-speculative decoding engine
-**File:** `mtp/eval/spec_decode.py` (+ `FixedK` and `ConfidenceCut` in `mtp/eval/draft_policy.py`, contract in INTERFACES §11)
-- Loop: run the model on the current sequence → heads 1..k-1 at the last position propose up to k-1 future tokens (greedy argmax) → `policy.num_draft_tokens(...)` decides how many to keep → one forward pass over `context + drafts` → head 0 verifies left to right, accepting while head 0's argmax equals the draft. Always emit at least 1 token (head 0's own prediction at the first mismatch).
-- Use the KV cache (`past_key_values`) and roll it back on rejection. Get the no-cache version correct first, then optimise.
-- Stats: tokens generated, forward passes, mean accepted length, per-head acceptance rate, tokens/sec, and the same for plain greedy on the same prompts → speedup.
-- **Correctness test (must pass):** for 20 prompts, spec-decode output ids == plain greedy output ids, exactly.
-- Group Integrity: given a grouper, the fraction of accepted multi-token spans that end on a group boundary.
-- Prompts: first 8–16 words of 200 FLORES devtest sentences, `max_new_tokens=64`, batch size 1, timed with `torch.cuda.synchronize()`.
+### OM-5 · Blind double annotation · P1 · S
+Jai gives you 50 gold sentence IDs (text only). Annotate them with `scripts/annotate.py` following `docs/annotation_guide.md` without looking at Jai's groups → `data/gold/hi_gold_om50.jsonl`. This is the agreement κ in the paper.
 
-## OM-7 · Eval entry point + Kaggle eval notebook
-**Files:** `scripts/evaluate.py`, `notebooks/kaggle_eval.ipynb`
-- `python scripts/evaluate.py --run_dir <...> --datasets indiccorp_eval flores_hi --spec_decode --policies fixed_k confidence_cut group_aware`
-- Writes `results/{run_name}/eval_{dataset}.json` exactly per INTERFACES §10. Commit these JSONs.
-- The notebook attaches a run's Kaggle Dataset (checkpoints) + `mtp-boundary-cache` and runs the script. It runs on your own Kaggle GPU quota.
+### OM-9 · Tables + figures · P1 · M
+- `scripts/make_tables.py` → `results/tables/*.md` + `*.tex`, `results/figures/*.pdf`.
+- **Table 1:** main results R0-R7 (hi). Columns: head-0 ppl, per-head top-1 (h1-h3), in-group top-1 (h1-h3), mean accepted length, speed-up.
+- **Table 2:** Marathi R8-R10.
+- **Table 3:** controls: R3 vs R6a, R5 vs R6, pilot S3 vs S3_all, grouper ablation R7.
+- **Table 4:** draft policies (FixedK / ConfidenceCut / GroupAware) on R2 and R3/R5.
+- **Table 5:** α ablation (C4).
+- **Figures:**
+  - (a) eval loss per head vs step, R2 vs R3/R5 (from `metrics.jsonl`);
+  - (b) per-head top-1, in-group vs at-boundary, grouped bars;
+  - (c) learned loss weights over training (R5);
+  - (d) **lookahead heatmap**, the headline figure: one sentence, each token coloured by the smallest head that predicted it correctly, word-group brackets above. Use a Devanagari font (Noto Sans Devanagari), a colour-blind-safe palette, and vector PDF.
+- Hyper-parameters in the setup table are read from the run configs automatically.
 
-## OM-8 · Evaluate every run
-- As each run R0–R10 finishes, Jainam posts its run Dataset name. Run OM-7 on it and push the JSON. Keep `results/STATUS.md` with a checklist of which runs are evaluated on which datasets.
-- Sanity-flag anything odd, e.g. head 0 of an MTP run much worse than R0, or speedup < 1.
+### OM-10 · Decoding by group type · P2 · S
+Accepted length and Group Integrity broken down by the group type the draft starts in (`grouper.group_types`). Shows where structure-aware drafting helps.
 
-## OM-9 · Tables + figures
-**File:** `scripts/make_tables.py` → `results/tables/*.md` + `*.tex`, `results/figures/*.pdf`
-- **Table 1:** main results. Rows R0–R7 (hi), columns: head0 ppl, per-head top-1 (h1–h3), in-group top-1 (h1–h3), mean accepted length, speedup.
-- **Table 2:** Marathi (R8–R10). **Table 3:** grouper ablation (R5 vs R6 vs R7). **Table 4:** draft policies (FixedK / ConfidenceCut / GroupAware) on R2 and R5.
-- **Figures:** (a) eval loss per head vs step for R2 and R5 (from `metrics.jsonl`); (b) per-head accuracy, in-group vs at-boundary, grouped bars; (c) learned loss weights over training for R5; (d) **lookahead heatmap**: one sentence, each token coloured by the smallest head index that predicted it correctly, with word-group brackets drawn above the tokens. (d) is the paper's headline figure, so make it look good: a Devanagari font (Noto Sans Devanagari), colour-blind-safe palette, and vector PDF.
-
-## Write-up (Phase E)
-- **Experimental setup:** hardware, dtype handling, hyper-parameters (pull from configs automatically), eval sets, decoding setup.
-- **Evaluation section:** metric definitions (per-head accuracy, in-group split, acceptance length, Group Integrity), all tables and figures, appendix with full per-run numbers.
+### Write-up
+Experimental setup (hardware, dtype policy, hyper-parameters from configs, eval sets, decoding setup); evaluation section (metric definitions: per-head accuracy, in-group split, acceptance length, Group Integrity; all tables and figures; appendix with per-run numbers).

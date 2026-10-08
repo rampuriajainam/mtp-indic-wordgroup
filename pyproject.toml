@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mtp"
+version = "0.2.0"
+description = "Word-Group Guided Multi-Token Prediction for Hindi and Marathi"
+requires-python = ">=3.10"
+# dependencies: see requirements.txt (pinned; torch comes from the platform)
+
+[tool.setuptools.packages.find]
+include = ["mtp*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

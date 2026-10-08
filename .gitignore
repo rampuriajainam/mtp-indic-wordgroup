@@ -9,3 +9,4 @@ training_log*.txt
 runs/
 boundary_cache/
 wandb/
+CLAUDE.local.md
