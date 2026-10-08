@@ -392,7 +392,8 @@ def main(argv=None):
     seed_everything(cfg.seed)
     device = pick_device()
     if device == "cuda":
-        print(f"GPU {torch.cuda.get_device_name(0)} | bf16 supported {torch.cuda.is_bf16_supported()}")
+        cap = torch.cuda.get_device_capability()
+        print(f"GPU {torch.cuda.get_device_name(0)} | compute capability {cap[0]}.{cap[1]} | native bf16 {cap[0] >= 8}")
     model, tokenizer = build_model(cfg, device)
     train_examples, eval_examples = build_data(cfg, tokenizer)
     train(cfg, model, tokenizer, train_examples, eval_examples, Path(args.run_root) / cfg.run_name,

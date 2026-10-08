@@ -210,3 +210,16 @@ def test_overrides():
     cfg = SimpleNamespace(optim=SimpleNamespace(lr=1.0))
     stubs.apply_overrides(cfg, ["optim.lr=1e-4", "losses.structural.enabled=true"])
     assert cfg.optim.lr == 1e-4 and cfg.losses.structural.enabled is True
+
+
+def test_auto_dtype_ignores_emulated_bf16(monkeypatch):
+    # T4 (sm_75): torch says bf16 is "supported" (emulated) -> we must still pick fp32 + fp16 autocast
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
+    monkeypatch.setattr(torch.cuda, "is_bf16_supported", lambda *a, **k: True)
+    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda *a, **k: (7, 5))
+    cfg = SimpleNamespace(dtype="auto")
+    assert stubs.pick_dtype("auto") == torch.float32
+    assert stubs._uses_fp16_autocast(cfg)
+    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda *a, **k: (8, 9))   # Ampere/Ada
+    assert stubs.pick_dtype("auto") == torch.bfloat16
+    assert not stubs._uses_fp16_autocast(cfg)
