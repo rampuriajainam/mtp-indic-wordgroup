@@ -289,13 +289,17 @@ def train(cfg, model, tokenizer, train_examples, eval_examples, run_dir, resume=
         cfg_get(cfg, "weighting.scheme", "fixed"), term_names,
         head_decay=cfg_get(cfg, "weighting.head_decay", 0.8),
         aux_weights=aux_weights(cfg),
+        fix_head0=cfg_get(cfg, "weighting.fix_head0", True),
+        dwa_window=cfg_get(cfg, "weighting.dwa_window", 20),
+        dwa_temperature=cfg_get(cfg, "weighting.dwa_temperature", 2.0),
     ).to(device)
 
     model_params = [p for p in model.parameters() if p.requires_grad]
     weighting_params = [p for p in weighting.parameters() if p.requires_grad]
     groups = [{"params": model_params, "weight_decay": cfg_get(cfg, "optim.weight_decay", 0.01)}]
     if weighting_params:
-        groups.append({"params": weighting_params, "weight_decay": 0.0})
+        groups.append({"params": weighting_params, "weight_decay": 0.0,
+                       "lr": cfg_get(cfg, "weighting.lr", cfg.optim.lr)})
     optimizer = torch.optim.AdamW(groups, lr=cfg.optim.lr)
     scaler = make_scaler(cfg)
     collator = Collator(tokenizer.pad_token_id)

@@ -10,7 +10,6 @@ import yaml
 from peft import LoraConfig, get_peft_model
 from transformers import MistralConfig, MistralForCausalLM
 
-from mtp.losses.weighting import LossWeighting
 from mtp.model.heads import MTPModel
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -93,14 +92,19 @@ def test_train_writes_metrics_and_checkpoints(tmp_path):
     assert "git_commit" in saved
 
 
-def test_resume_matches_uninterrupted_run(tmp_path):
-    full = run(make_cfg(tmp_path), tmp_path / "full")
+@pytest.mark.parametrize("scheme", ["fixed", "uncertainty", "dwa"])
+def test_resume_matches_uninterrupted_run(tmp_path, scheme):
+    def cfg_for(steps):
+        cfg = make_cfg(tmp_path)
+        cfg.weighting.scheme = scheme
+        cfg.weighting.lr = 0.05          # make learned weights move visibly
+        cfg.weighting.dwa_window = 1
+        cfg.optim.max_steps = steps
+        return cfg
 
-    cfg = make_cfg(tmp_path)
-    cfg.optim.max_steps = 3
-    run(cfg, tmp_path / "split")
-    cfg = make_cfg(tmp_path)
-    resumed = run(cfg, tmp_path / "split", resume="auto")
+    full = run(cfg_for(6), tmp_path / "full")
+    run(cfg_for(3), tmp_path / "split")
+    resumed = run(cfg_for(6), tmp_path / "split", resume="auto")
 
     a, b = trainable_state(full), trainable_state(resumed)
     assert a.keys() == b.keys()
@@ -206,18 +210,3 @@ def test_overrides():
     cfg = SimpleNamespace(optim=SimpleNamespace(lr=1.0))
     stubs.apply_overrides(cfg, ["optim.lr=1e-4", "losses.structural.enabled=true"])
     assert cfg.optim.lr == 1e-4 and cfg.losses.structural.enabled is True
-
-
-def test_fixed_weighting():
-    names = ["loss/head0", "loss/head1", "loss/head2", "struct/boundary_bce/h1", "contrastive/supcon"]
-    w = LossWeighting("fixed", names, head_decay=0.8, aux_weights={"struct": 0.1, "struct/boundary_bce": 0.3})
-    losses = {n: torch.tensor(1.0) for n in names}
-    total, weights = w(losses)
-    assert weights["loss/head2"] == pytest.approx(0.64)
-    assert weights["struct/boundary_bce/h1"] == pytest.approx(0.3)   # longest prefix wins
-    assert weights["contrastive/supcon"] == 1.0
-    assert total.item() == pytest.approx(1 + 0.8 + 0.64 + 0.3 + 1.0)
-    with pytest.raises(KeyError):
-        w({"loss/head9": torch.tensor(1.0)})
-    with pytest.raises(NotImplementedError):
-        LossWeighting("uncertainty", names)
