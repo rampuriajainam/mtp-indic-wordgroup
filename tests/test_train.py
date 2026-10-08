@@ -1,6 +1,5 @@
 import importlib.util
 import json
-import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -10,10 +9,12 @@ import yaml
 from peft import LoraConfig, get_peft_model
 from transformers import MistralConfig, MistralForCausalLM
 
+from mtp.config import load_config
+from mtp.data.collate import Collator
+from mtp.model.build import uses_probes
 from mtp.model.heads import MTPModel
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "scripts"))
 
 
 def _load(name, path):
@@ -24,7 +25,6 @@ def _load(name, path):
 
 
 train_mod = _load("train_script", ROOT / "scripts" / "train.py")
-stubs = _load("_stubs_om", ROOT / "scripts" / "_stubs_om.py")
 
 V = 50
 
@@ -38,7 +38,7 @@ def make_cfg(tmp_path, **over):
         d[k] = v
     p = tmp_path / "cfg.yaml"
     p.write_text(yaml.safe_dump(d), encoding="utf-8")
-    return stubs.load_config(p)
+    return load_config(p)
 
 
 def make_model(cfg):
@@ -131,6 +131,7 @@ def test_grad_accum_and_data_wraparound(tmp_path):
 def test_group_losses_need_cache(tmp_path):
     cfg = make_cfg(tmp_path)
     cfg.losses.structural.enabled = True
+    cfg.data.grouper = "not_a_registered_grouper"     # and no cache -> fail before any download
     with pytest.raises(FileNotFoundError):
         train_mod.build_data(cfg, tokenizer=None)
     cfg.losses.structural.variant = "TBD"
@@ -165,7 +166,7 @@ def test_train_with_structural_loss_and_resume(tmp_path, variant):
         torch.manual_seed(cfg.seed)
         base_model, tok = make_model(cfg)
         model = MTPModel(base_model.base_model, num_heads=cfg.num_heads, head_type=cfg.head_type,
-                         boundary_probes=train_mod.uses_probes(cfg))
+                         boundary_probes=uses_probes(cfg))
         train_mod.train(cfg, model, tok, with_groups(make_examples(20)), with_groups(make_examples(5, seed=1)),
                         run_dir, resume=resume)
         return model
@@ -181,7 +182,7 @@ def test_train_with_structural_loss_and_resume(tmp_path, variant):
         w = {r["name"]: r["value"] for r in rows if r["name"].startswith("weight/struct/boundary")}
         assert w and all(v == pytest.approx(0.1) for v in w.values())
 
-    split = go(tmp_path / "split", 2)
+    go(tmp_path / "split", 2)
     resumed = go(tmp_path / "split", 4, resume="auto")
     a, b = trainable_state(model), trainable_state(resumed)
     for name in a:
@@ -189,7 +190,7 @@ def test_train_with_structural_loss_and_resume(tmp_path, variant):
 
 
 def test_batch_at_is_deterministic():
-    collate = stubs.Collator(pad_id=0)
+    collate = Collator(pad_id=0)
     ex = make_examples(5)
     b = train_mod.batch_at(ex, collate, index=2, batch_size=2)   # rows 4, 0
     assert b["input_ids"][0, : len(ex[4]["input_ids"])].tolist() == ex[4]["input_ids"]
@@ -199,27 +200,8 @@ def test_batch_at_is_deterministic():
 
 @pytest.mark.parametrize("path", sorted((ROOT / "configs").glob("*.yaml")), ids=lambda p: p.stem)
 def test_configs_load(path):
-    cfg = stubs.load_config(path)
+    cfg = load_config(path)
     for field in ("run_name", "lang", "model_name", "num_heads", "head_type", "seed", "dtype", "eval_every", "save_every"):
         assert hasattr(cfg, field), field
     assert cfg.optim.lr == 2e-4 and cfg.optim.batch_size == 8
     assert cfg.lora.r == 8 and list(cfg.lora.targets) == ["q_proj", "v_proj"]
-
-
-def test_overrides():
-    cfg = SimpleNamespace(optim=SimpleNamespace(lr=1.0))
-    stubs.apply_overrides(cfg, ["optim.lr=1e-4", "losses.structural.enabled=true"])
-    assert cfg.optim.lr == 1e-4 and cfg.losses.structural.enabled is True
-
-
-def test_auto_dtype_ignores_emulated_bf16(monkeypatch):
-    # T4 (sm_75): torch says bf16 is "supported" (emulated) -> we must still pick fp32 + fp16 autocast
-    monkeypatch.setattr(torch.cuda, "is_available", lambda: True)
-    monkeypatch.setattr(torch.cuda, "is_bf16_supported", lambda *a, **k: True)
-    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda *a, **k: (7, 5))
-    cfg = SimpleNamespace(dtype="auto")
-    assert stubs.pick_dtype("auto") == torch.float32
-    assert stubs._uses_fp16_autocast(cfg)
-    monkeypatch.setattr(torch.cuda, "get_device_capability", lambda *a, **k: (8, 9))   # Ampere/Ada
-    assert stubs.pick_dtype("auto") == torch.bfloat16
-    assert not stubs._uses_fp16_autocast(cfg)

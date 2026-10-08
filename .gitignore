@@ -1,6 +1,12 @@
 .venv/
-checkpoints/
 __pycache__/
 *.pyc
-training_log*.txt
+.pytest_cache/
+*.egg-info/
+checkpoints/
 lora_test_checkpoint/
+training_log*.txt
+runs/
+boundary_cache/
+wandb/
+CLAUDE.local.md

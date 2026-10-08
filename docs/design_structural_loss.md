@@ -70,12 +70,13 @@ Two choices of teacher. **Both are piloted** (decision 1 in section 4):
 
 ## 3. Pilot plan (Phase C, needs H3; final pick needs H4)
 
-- **Setup:** R2 setup (k = 4, zero-init resblock heads, fixed weighting 0.8^d on CE), 2,000 steps, seed 42, the `hi_rules_v1` cache.
-- **Weights:** λ_S2 = 0.1 (BCE ≈ 0.6) and λ_S3 = 0.5 (KL ≈ 2.8), both fixed for the pilots. Adaptive weighting comes later, in JN-7.
+- **Setup:** R2 setup (k = 4, zero-init resblock heads, `head_backbone_grad` 0.1, fixed weighting 0.8^d on CE), 2,000 steps, seed 42, groups from `hi_rules_v0` labelled on the fly (`hi_rules_v1` if JI-1 has landed), eval every 250 steps on the full IndicCorp eval set (~500 sentences), which logs in-group vs at-boundary top-1.
+- **Weights:** λ_S2 = 0.1 (BCE ≈ 0.6) and λ_S3 = 0.5 (KL ≈ 2.8 on the trained laptop model), both fixed for the pilots. Adaptive weighting comes later, in JN-7.
+- **Watch:** at initialisation the S3 KL is ~7-9, not 2.8 (measured on the real model, 2026-10-09), so S3 starts about 3x stronger than intended. If head 0 or head 1 is behind `pilot_R2ref` at step 500, add a λ_S3 = 0.1 run.
 
 | config | structural terms |
 |---|---|
-| R2 @ step 2000 | none (reference, taken from the R2 run, same seed and data) |
+| `pilot_R2ref` | none (reference: R2 for 2,000 steps on the same eval set) |
 | `pilot_S2` | S2 on heads 0–3 |
 | `pilot_S3` | S3-h0, in-group mask |
 | `pilot_S3chain` | S3-chain, in-group mask |

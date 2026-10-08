@@ -1,257 +1,264 @@
-# Interface Contracts
+# Interface Contracts (v2)
 
-**Project:** Word-Group Guided Multi-Token Prediction with Adaptive Loss Weighting for Hindi and Marathi
+**Project:** Word-Group Guided Multi-Token Prediction for Hindi and Marathi
 
-This file is the single source of truth for how the pieces connect. Every task file points here.
-If you need to change a contract, change it here first and tell the other two people.
-Code that matches these signatures can be written by any of us independently and will plug together.
+The single source of truth for how the pieces connect. Code that matches these signatures can be written by any of us independently and will plug together. To change a contract: edit this file in the same PR and put "[contract change]" in the PR title.
+
+Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be written by that person.
 
 ---
 
-## 0. Ground truth: what already exists in the repo
+## 0. What exists
 
-| File | What it does | Status |
+| module | what | status |
 |---|---|---|
-| `test_load_model.py` | Loads `LingoIITGN/ganga-1b`, generates Hindi | Done |
-| `test_lora_training.py` | PEFT/LoRA wrap + 3 dummy steps | Done |
-| `check_datasets.py` | Loads `ai4bharat/IndicCorpV2`, config `indiccorp_v2`, split `hin_Deva` | Done |
-| `train_ntp_baseline_final.py` | NTP baseline: LoRA r=8 on `q_proj,v_proj`, lr 2e-4, batch 8, max_len 128, 100 held-out sentences, grad clip 1.0 | Done. Held-out loss **3.05** |
-| `medusa_heads.py` | `MedusaWrapper(base_model, num_extra_heads)`: extra heads are plain `nn.Linear(hidden, vocab)` on the last hidden state | Done (k=2 tested) |
-| `train_mtp_baseline.py` | Token-level MTP, k=2, same LoRA setup, summed per-head CE | Done. 12,500 batches: head0 **3.09**, head1 **8.10 → 5.84** |
-| `word_group_boundaries.py` | `find_word_groups(sentence) -> list[list[str]]`, rule-based (aux + postposition lists) | v0, **short** lists (21 aux, 8 postpositions). The expanded lists (light verbs, वाला-forms, more particles, a `COMPOUND_POSTPOSITIONS` set that is defined but unused) live in `validate_on_real_data.py` |
-| `boundary_alignment.py` | `get_aligned_boundary_labels(sentence)` returns token-level `1 = group start` labels via `offset_mapping` | Done, verified by eye |
-| `validate_on_real_data.py` | Despite the name, the on-disk version is a copy of `word_group_boundaries.py` with the expanded lists; the corpus-coverage code that produced 25% words matched / 1.33 words/group is not in it | Lists only |
+| `mtp/config.py` | YAML ↔ attribute namespace, `apply_overrides`, `cfg_get` | [exists] |
+| `mtp/device.py` | `pick_device`, `pick_dtype`, `native_bf16`, `autocast_ctx`, `make_scaler` | [exists] |
+| `mtp/utils/logging.py` | `MetricLogger`, `read_metrics` | [exists] |
+| `mtp/data/corpus.py` | `load_split(lang, split, n)` | [exists] |
+| `mtp/data/collate.py` | `Collator(pad_id)` | [exists] |
+| `mtp/data/grouping/base.py` | `Grouper` protocol, `REGISTRY`, `get_grouper`, `check_partition` | [exists] |
+| `mtp/data/grouping/hindi_rules.py` | `hi_rules_v0` (legacy lists) | [exists]; `hi_rules_v1` [todo: Jai] |
+| `mtp/data/grouping/align.py` | `label_tokens`, `label_batch` | [exists] |
+| `mtp/model/heads.py` | `MTPModel`, `MTPOutput` | [exists] |
+| `mtp/model/build.py` | `build_model(cfg, device)`, `load_tokenizer` | [exists] |
+| `mtp/model/checkpoint.py` | `save_run`, `latest_step`, `load_weights`, `load_run` | [exists] |
+| `mtp/losses/mtp_ce.py` | `per_head_ce`, `shift_targets` | [exists] |
+| `mtp/losses/structural.py` | `StructuralLoss` (S2, S3_h0, S3_chain, S3_all, S23) | [exists] |
+| `mtp/losses/weighting.py` | `LossWeighting` (fixed, uncertainty, dwa) | [exists] |
+| `scripts/train.py` | training entry point | [exists] |
+| `notebooks/kaggle_train.ipynb` | Kaggle training | [exists] |
+| `mtp/losses/contrastive.py` | SupCon over word groups | [todo: Jainam, P2] |
+| `mtp/eval/draft_policy.py` | `DraftPolicy`, `FixedK`, `ConfidenceCut`, `POLICIES` registry | [todo: Om] |
+| `mtp/eval/group_aware.py` | `GroupAware` policy | [todo: Jainam] |
+| `mtp/eval/perplexity.py`, `head_accuracy.py` | evaluation | [todo: Om] |
+| `mtp/eval/spec_decode.py` | self-speculative decoding engine | [todo: Om] |
+| `scripts/evaluate.py`, `notebooks/kaggle_eval.ipynb` | evaluation entry point | [todo: Om] |
+| `mtp/data/grouping/{random_grouper,trankit_grouper,marathi_rules}.py` | groupers | [todo: Jai] |
+| `mtp/eval/group_metrics.py`, `scripts/{score_groupers,group_stats,probe_layers,annotate}.py` | grouper quality, statistics, probing | [todo: Jai] |
+| `mtp/data/boundary_cache.py`, `scripts/build_boundary_cache.py` | optional pre-labelled cache | [todo: Jai, P2] |
+| `scripts/make_tables.py` | tables + figures | [todo: Om] |
 
-These all live flat in the repo root. Step 1 of the plan moves them into the package below (old copies go to `legacy/`).
-
----
-
-## 1. Target repo layout
-
-```
-mtp-indic-research/
-├── mtp/                          # importable package:  import mtp
-│   ├── __init__.py
-│   ├── config.py                 # RunConfig dataclass + YAML load/save               [Om]
-│   ├── device.py                 # dtype/autocast selection (bf16 vs fp16 vs fp32)    [Om]
-│   ├── data/
-│   │   ├── corpus.py             # streaming load, fixed held-out split, batching     [Om]
-│   │   ├── collate.py            # pads input_ids / attention_mask / group_id         [Om]
-│   │   ├── boundary_cache.py     # build + load pre-labelled datasets                 [Jai]
-│   │   └── grouping/
-│   │       ├── base.py           # Grouper protocol + registry                        [Jai]
-│   │       ├── hindi_rules.py    # rule grouper, Hindi                                [Jai]
-│   │       ├── marathi_rules.py  # rule grouper, Marathi                              [Jai]
-│   │       ├── trankit_grouper.py# dependency-parse grouper (hi + mr)                 [Jai]
-│   │       ├── random_grouper.py # control: random boundaries, same length dist.     [Jai]
-│   │       └── align.py          # word groups -> token labels (from boundary_alignment.py) [Jai]
-│   ├── model/
-│   │   ├── heads.py              # MTPModel, head variants                            [Jainam]
-│   │   └── checkpoint.py         # save_run / load_run                                [Om]
-│   ├── losses/
-│   │   ├── mtp_ce.py             # per-head shifted CE (from train_mtp_baseline.py)   [Jainam]
-│   │   ├── structural.py         # word-group structural loss                         [Jainam]
-│   │   ├── contrastive.py        # group contrastive loss                             [Jainam]
-│   │   └── weighting.py          # fixed / uncertainty / DWA weighting                [Jainam]
-│   ├── eval/
-│   │   ├── perplexity.py         # per-head loss + ppl                                [Om]
-│   │   ├── head_accuracy.py      # top-1/top-5 per head, split in-group vs boundary   [Om]
-│   │   ├── spec_decode.py        # self-speculative decoding engine + speed metrics   [Om]
-│   │   ├── draft_policy.py       # pluggable draft-length policies                    [Jainam]
-│   │   └── group_metrics.py      # grouper P/R/F1 vs gold, group stats                [Jai]
-│   └── utils/
-│       └── logging.py            # JSONL metric logger                                [Om]
-├── scripts/
-│   ├── train.py                  # single training entry point                        [Jainam]
-│   ├── evaluate.py               # single eval entry point                            [Om]
-│   ├── build_boundary_cache.py   # CLI around boundary_cache                          [Jai]
-│   ├── score_groupers.py         # groupers vs gold set                               [Jai]
-│   └── make_tables.py            # results/*.json -> tables + plots                   [Om]
-├── configs/                      # one YAML per run (see §6)                          [Jainam owns run configs]
-├── notebooks/
-│   ├── kaggle_train.ipynb                                                             [Om]
-│   └── kaggle_eval.ipynb                                                              [Om]
-├── data/gold/                    # hand-annotated gold groups                         [Jai]
-├── docs/                         # annotation guide, plan, report drafts
-├── results/                      # eval JSON + tables + figures (committed)
-├── tests/                        # pytest, CPU-only, tiny inputs
-├── legacy/                       # the original root-level scripts, untouched
-├── requirements.txt
-└── README.md
-```
+`legacy/` holds the original laptop scripts (see `legacy/README.md`).
 
 Rule: **nothing under `mtp/` may download a model or dataset at import time.** Loading happens inside functions.
 
----
+## 1. Repo layout
 
-## 2. Grouping contract (Jai builds, everyone consumes)
+```
+mtp/            config.py device.py
+  data/         corpus.py collate.py boundary_cache.py*  grouping/{base,align,hindi_rules,marathi_rules*,random_grouper*,trankit_grouper*}.py
+  model/        heads.py build.py checkpoint.py
+  losses/       mtp_ce.py structural.py weighting.py contrastive.py*
+  eval/         perplexity.py* head_accuracy.py* spec_decode.py* draft_policy.py* group_aware.py* group_metrics.py*
+  utils/        logging.py
+scripts/        train.py jn2_structural_stats.py evaluate.py* make_tables.py* build_boundary_cache.py*
+                score_groupers.py* group_stats.py* probe_layers.py* annotate.py*
+configs/        R0..R10, pilot_*.yaml (Jainam owns run configs)
+notebooks/      kaggle_train.ipynb kaggle_eval.ipynb*
+data/gold/      hi_gold.jsonl* mr_gold.jsonl* hi_gold_om50.jsonl*
+results/        eval JSON, tables, figures (committed)
+docs/           plan/, design notes, runs.md, annotation_guide.md*
+tests/          pytest, CPU-only (conftest.py: tiny tokenizer + tiny model fixtures)
+legacy/         original scripts, unchanged
+```
+(* = todo)
+
+## 2. Grouping contract (Jai owns; everyone consumes)
 
 ```python
-# mtp/data/grouping/base.py
-from typing import Protocol
+# mtp/data/grouping/base.py  [exists]
+GROUP_TYPES = ("single", "aux_chain", "postposition", "compound_postposition", "light_verb", "other")
+REGISTRY = {"hi_rules_v0": "mtp.data.grouping.hindi_rules:HindiRuleGrouperV0", ...}   # name -> "module:Class"
 
 class Grouper(Protocol):
-    name: str            # e.g. "hi_rules_v1", "trankit", "random"
-    lang: str            # "hi" or "mr"
-    def group_words(self, sentence: str) -> list[list[str]]:
-        """Whitespace words of `sentence`, partitioned into contiguous groups.
-        Concatenating all groups in order MUST give exactly sentence.split()."""
-    def group_types(self, sentence: str) -> list[str]:
-        """One type per group, same order as group_words():
-        'single' | 'aux_chain' | 'postposition' | 'compound_postposition' | 'light_verb' | 'other'"""
+    name: str            # "hi_rules_v1", "trankit", "random", ...
+    lang: str            # "hi" | "mr"
+    def group_words(self, sentence: str) -> list[list[str]]: ...   # concatenation == sentence.split()
+    def group_types(self, sentence: str) -> list[str]: ...         # one GROUP_TYPES entry per group
 
-def get_grouper(name: str, lang: str, **kwargs) -> Grouper: ...
+def get_grouper(name: str, lang: str = "hi", **kwargs) -> Grouper   # constructor gets (lang=..., **kwargs)
+def check_partition(sentence: str, groups) -> None                  # raises ValueError
 ```
+- A new grouper = a class with `__init__(self, lang="hi", **kw)` + one line in `REGISTRY`.
+- Optional, for slow groupers (Trankit): `batch_group_words(sentences) -> list[list[list[str]]]`.
+- `random` grouper: `RandomGrouper(lang, histogram: dict[int, float], seed: int = 0)`, deterministic per (seed, sentence), and `RandomGrouper.fit_from(grouper, sentences, seed=0)` to copy another grouper's group-length histogram. Registered name `random`; `get_grouper("random", lang, histogram=...)` or a default histogram measured from `hi_rules_v1` on 5,000 train sentences and stored in the module.
 
 ```python
-# mtp/data/grouping/align.py
-def label_tokens(sentence: str, tokenizer, grouper: Grouper, max_length: int = 128) -> dict:
-    """Tokenize the FULL sentence once (same call as training) and return:
-        input_ids:      list[int]
-        attention_mask: list[int]
-        group_start:    list[int]  # 1 if token is first token of a word-group, else 0
-        group_id:       list[int]  # 0,0,0,1,1,2,...  index of the group each token belongs to
-                                   # -1 for special tokens (BOS/EOS) and padding
-    All four lists have identical length."""
+# mtp/data/grouping/align.py  [exists]
+def label_tokens(sentence, tokenizer, grouper, max_length=128) -> dict
+def label_batch(sentences, tokenizer, grouper, max_length=128) -> list[dict]   # same, one tokenizer call
+# dict: input_ids, attention_mask, group_start (1 = first token of a group), group_id (0,0,1,2,2,...; -1 = special/pad)
 ```
+Rules: uses `offset_mapping` on the full sentence (a token starts group g if g's first character is in `[tok_start, tok_end)`, which covers SentencePiece's leading space); `group_id` is non-decreasing over real tokens; truncation may cut the last group. Identical to `legacy/boundary_alignment.py` on all 500 eval sentences.
 
-Rules:
-- Uses `offset_mapping`, same as `boundary_alignment.py` (SentencePiece leading-space handling included).
-- `group_id` is monotonic non-decreasing over real tokens.
-- Truncation at `max_length` may cut a group. That is fine; the cut group just ends early.
+## 3. Boundary cache (optional; Jai)
 
-## 3. Boundary cache contract (Jai builds, Jainam trains on it, Om evaluates on it)
+Training does not need it: `scripts/train.py` labels raw text on the fly with `label_batch`. The cache is for slow groupers (Trankit) and for a fixed, shareable artifact.
 
-A HuggingFace `datasets.Dataset` saved with `save_to_disk`, uploaded as a Kaggle Dataset.
+A HuggingFace `datasets.Dataset` (`save_to_disk`) per `boundary_cache/{lang}_{grouper}_{split}/` with columns `text, input_ids, attention_mask, group_start, group_id` (unpadded; §2), and `meta.json` **inside** the folder: `{"grouper", "tokenizer", "max_length", "n_rows", "words_per_group", "tokens_per_group", "pct_tokens_group_start"}`. `train.py` checks `meta.json["tokenizer"] == cfg.model_name`. Splits as in §4. One Kaggle Dataset `mtp-boundary-cache`.
 
-| column | type | notes |
-|---|---|---|
-| `text` | str | raw sentence |
-| `input_ids` | list[int] | unpadded |
-| `attention_mask` | list[int] | unpadded |
-| `group_start` | list[int] | §2 |
-| `group_id` | list[int] | §2 |
-
-Folder naming: `boundary_cache/{lang}_{grouper}_{split}/` e.g. `hi_hi_rules_v1_train/`, `hi_trankit_eval/`, `mr_mr_rules_v1_train/`.
-Splits: `train` (N configurable, default 200k), `eval` (the **fixed** held-out set, see §4), `flores` (FLORES-200 devtest).
-A `meta.json` next to each folder: grouper name, tokenizer name, max_length, n rows, avg group length (words + tokens), % tokens that are group starts.
-
-Collate (`mtp/data/collate.py`, Om): right-pad `input_ids` with pad id, `attention_mask` with 0, `group_start` with 0, `group_id` with -1. Returns tensors.
+Collate (`Collator(pad_id)`) right-pads `input_ids` with pad id, `attention_mask` and `group_start` with 0, `group_id` with -1; works without the group columns.
 
 ## 4. Fixed evaluation sets
 
-So numbers from different people are comparable:
-- **IndicCorp held-out:** first 1,000 rows of the `hin_Deva` stream (and `mar_Deva` for Marathi). Training draws from row 1,000 onward. (The current scripts use the first 100. Keep that subset as `eval_small` for quick checks.)
-- **FLORES-200 devtest:** `hin_Deva`, `mar_Deva`.
-- **Gold grouping set:** `data/gold/hi_gold.jsonl`, `data/gold/mr_gold.jsonl` (§7).
+`load_split(lang, split, n=None) -> list[str]` [exists]. IndicCorpV2 has a blank row between documents, so splits are on **raw row numbers with blank rows dropped**:
 
-## 5. Model contract (Jainam builds)
+| split | content | size (hi) | eval dataset name |
+|---|---|---|---|
+| `eval` | IndicCorp raw rows 0-999 | ~500 sentences | `indiccorp_eval` |
+| `eval_small` | raw rows 0-99 (the laptop runs' held-out set) | ~50 | `indiccorp_eval_small` |
+| `train` | the first n non-blank rows from raw row 1,000 | n | – |
+| `flores` | FLORES-200 devtest (`hin_Deva` / `mar_Deva`) | 1,012 | `flores_hi`, `flores_mr` |
+
+Gold grouping sets: `data/gold/hi_gold.jsonl`, `data/gold/mr_gold.jsonl` (§7).
+
+## 5. Model contract (Jainam)
 
 ```python
-# mtp/model/heads.py
+# mtp/model/heads.py  [exists]
 @dataclass
 class MTPOutput:
-    logits: list[torch.Tensor]   # length k; logits[i] is [B, T, V]; head i predicts token t+i+1
-    hidden: torch.Tensor         # [B, T, H] last hidden state (for contrastive loss)
-    aux: dict                    # optional extras, e.g. boundary-prediction logits
+    logits: list[torch.Tensor]   # length k; logits[d] is [B, T, V]; head d predicts token t+d+1
+    hidden: torch.Tensor         # [B, T, H] last hidden state (after the final norm)
+    aux: dict                    # see below
 
 class MTPModel(nn.Module):
-    def __init__(self, base_model, num_heads: int, head_type: str = "linear", **kw): ...
-    def forward(self, input_ids, attention_mask=None) -> MTPOutput: ...
+    def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1,
+                 backbone_grad: float = 1.0, boundary_probes: bool = False, **kw): ...
+    def forward(self, input_ids, attention_mask=None, use_cache: bool = False, **kw) -> MTPOutput: ...
+    def head_state_dict(self) -> dict          # extra heads + probes = heads.pt
+    def load_head_state_dict(self, state)      # also accepts the legacy extra_heads-only format
+    num_heads: int; head_type: str; extra_heads: nn.ModuleList; boundary_probes: nn.ModuleList
 ```
-- `num_heads` counts **all** heads including head 0 (the original LM head). Current `medusa_heads.py` uses `num_extra_heads`; `num_heads = num_extra_heads + 1`.
-- `head_type`: `"linear"` (current), `"resblock"` (Medusa-1 style residual block, init so it starts as identity + the LM head).
-- Optional `__init__` kwargs (JN-1/JN-3/JN-5): `n_layers=1` (resblocks per head), `backbone_grad=1.0` (scales the gradient heads 1..k-1 send into the backbone; 0 = detached), `boundary_probes=False` (one linear probe per head for S2 / `GroupAware`).
-- `forward(..., use_cache=False)`. `aux` keys: `head_hidden` (list of k `[B, T, H]`, the state each head's output layer reads), `boundary_logits` (list of k `[B, T]`, only with probes), `past_key_values` (only with `use_cache=True`).
-- `head_state_dict()` / `load_head_state_dict(state)`: every non-base parameter (extra heads + probes). This is what `heads.pt` holds. `load_head_state_dict` also accepts the legacy `extra_heads.state_dict()` format.
+- `num_heads` counts all heads including head 0 (the base LM head).
+- `head_type`: `"linear"` (fresh `nn.Linear(hidden, vocab)`, R1), `"resblock"` (h_d = h + SiLU(W h + b), W, b zero-init, logits = frozen `lm_head(h_d)`).
+- `backbone_grad`: share of heads 1..k-1's gradient that reaches the backbone (0 = detached). Forward is identical for every value.
+- `aux["head_hidden"]`: list of k `[B, T, H]` (what each head's output layer reads). `aux["boundary_logits"]`: list of k `[B, T]`, logit that token t+d+1 starts a word group (only with probes). `aux["past_key_values"]`: only with `use_cache=True`.
 
-## 6. Run config contract (Om builds loader, Jainam writes configs)
+```python
+# mtp/model/build.py  [exists]
+def build_model(cfg, device) -> tuple[MTPModel, tokenizer]   # tokenizer -> base (pick_dtype) -> LoRA -> MTPModel
+```
+
+## 6. Run config contract
+
+YAML loaded by `load_config` into an attribute namespace (`cfg.optim.lr`). Optional fields are read with `cfg_get(cfg, "a.b", default)`, so adding a field never breaks old configs. CLI: `--set optim.lr=1e-4` (`apply_overrides`).
 
 ```yaml
-run_name: hi_mtp_k4_struct_adaptive
+run_name: R2_hi_mtp_k4_resblock
 lang: hi
 model_name: LingoIITGN/ganga-1b
 num_heads: 4
-head_type: resblock
+head_type: resblock               # linear | resblock
+head_layers: 1                    # resblocks per head
+head_backbone_grad: 0.1           # α; 1.0 = full joint training
 lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}
-optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500}
-data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: hi_rules_v1, max_length: 128}
+optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500, grad_accum: 1, weight_decay: 0.01}
+data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: hi_rules_v0, max_length: 128, eval_split: eval_small, eval_n: 100}
 losses:
-  structural: {enabled: true, variant: S2, weight: 0.1}
+  structural: {enabled: false, variant: null, weight: 1.0, lambda_s2: 0.1, lambda_s3: 0.5, s3_teacher: h0}
   contrastive: {enabled: false, weight: 0.05, temperature: 0.1}
-weighting: {scheme: uncertainty}     # fixed | uncertainty | dwa
+weighting: {scheme: fixed, head_decay: 0.8}   # fixed | uncertainty | dwa; + fix_head0, dwa_window, dwa_temperature, lr
+log_every: 20
 eval_every: 250
 save_every: 500
+keep_steps: []                    # step folders never deleted
 seed: 42
-dtype: auto                          # auto | bf16 | fp16 | fp32
+dtype: auto                       # auto | bf16 | fp16 | fp32
+# git_commit: written by train.py into the run's config.yaml
 ```
-Optional fields `scripts/train.py` reads with defaults (JN-3; `RunConfig` must accept them): `head_layers: 1`, `head_backbone_grad: 1.0`, `optim.grad_accum: 1`, `optim.weight_decay: 0.01`, `data.eval_n: 100`, `data.eval_split: eval_small`, `losses.structural.{lambda_s2: 0.1, lambda_s3: 0.5, s3_teacher: h0}`, `weighting.head_decay: 0.8`, `log_every: 20`, `keep_steps: []`, and `git_commit` (written by train.py). CLI overrides: `apply_overrides(cfg, ["optim.lr=1e-4", ...])`.
+Structural variants: `S2`, `S3_h0`, `S3_chain`, `S3_all`, `S23` (see `docs/design_structural_loss.md`). `TBD` in a config = not decided yet; train.py fails loudly on it.
 
 ## 7. Gold annotation format (Jai)
 
 `data/gold/hi_gold.jsonl`, one sentence per line:
 ```json
-{"id": "hi_0001", "source": "flores_devtest", "text": "मैं कल बाजार जा रहा था।", "groups": [[0],[1],[2],[3,4,5]], "annotator": "jai", "notes": ""}
+{"id": "hi_0001", "source": "flores_devtest", "text": "मैं कल बाजार जा रहा था।", "groups": [[0],[1],[2],[3,4,5]], "types": ["single","single","single","aux_chain"], "annotator": "jai", "notes": ""}
 ```
-`groups` are lists of word indices into `text.split()`.
+`groups` are lists of word indices into `text.split()` (contiguous, covering every word); `types` from `GROUP_TYPES`, one per group.
 
-## 8. Checkpoint contract (Om builds, Jainam calls)
+## 8. Checkpoint contract
 
 ```python
-# mtp/model/checkpoint.py
-def save_run(run_dir: str, model: MTPModel, cfg: RunConfig, step: int, optimizer=None, weighting=None) -> None
-def load_run(run_dir: str, device: str = "auto") -> tuple[MTPModel, "Tokenizer", RunConfig]
-def latest_step(run_dir: str) -> int | None   # for resuming after a Kaggle session ends
+# mtp/model/checkpoint.py  [exists]
+def save_run(run_dir, model, cfg, step, optimizer=None, weighting=None, keep_last=2) -> None
+def latest_step(run_dir) -> int | None
+def load_weights(model, step_dir) -> None                                   # LoRA + heads.pt into a built model
+def load_run(run_dir, device="auto", step=None) -> tuple[MTPModel, tokenizer, cfg]   # eval mode; model.loaded_step
 ```
-Layout:
 ```
 runs/{run_name}/
-  config.yaml
-  step_{N}/lora/            # PEFT save_pretrained
-  step_{N}/heads.pt         # model.head_state_dict(): extra heads + boundary probes
-  step_{N}/weighting.pt     # learned loss weights, if any
-  step_{N}/optim.pt         # optional, for resume
+  config.yaml            once, incl. git_commit
   metrics.jsonl
+  step_{N}/lora/         PEFT save_pretrained
+  step_{N}/heads.pt      model.head_state_dict()
+  step_{N}/weighting.pt  LossWeighting state
+  step_{N}/optim.pt      written by train.py: {"step", "optimizer", "scaler", "rng"}
 ```
-`scripts/train.py` calls `save_run(..., optimizer=None, weighting=...)` and then writes `optim.pt` itself: `{"step", "optimizer", "scaler", "rng"}`. Resume restores LoRA via `set_peft_model_state_dict`, `heads.pt` via `load_head_state_dict`, then `optim.pt`.
+Only the last 2 step folders are kept, plus `keep_steps`. A published run = this folder as Kaggle Dataset `mtp-run-<ID>`.
 
-## 9. Metrics log contract (Om builds, everyone writes)
+## 9. Metrics log contract
 
-`metrics.jsonl`, one JSON object per line:
-```json
-{"step": 500, "split": "train", "name": "loss/head1", "value": 6.12}
-{"step": 500, "split": "eval",  "name": "loss/head0", "value": 3.07}
-{"step": 500, "split": "train", "name": "weight/structural", "value": 0.083}
-```
-Name prefixes: `loss/`, `acc/`, `weight/`, `lr`, `time/`.
+`metrics.jsonl`, one object per line: `{"step": 500, "split": "train" | "eval", "name": "...", "value": 6.12}`.
 
-## 10. Eval output contract (Om builds)
+| name | split | meaning |
+|---|---|---|
+| `loss/head{d}`, `loss/total` | train, eval | per-head CE (mean over valid positions) |
+| `struct/boundary_bce/h{d}`, `struct/consistency/h{d}` | train | structural terms, unweighted |
+| `weight/head{d}`, `weight/struct/...` | train | effective loss weights |
+| `acc/top1/head{d}` | eval | top-1 |
+| `acc/top1_in_group/head{d}`, `acc/top1_at_boundary/head{d}` | eval | top-1 split by whether target t+d+1 is in the source token t's group |
+| `lr`, `grad_norm`, `time/sec_per_step` | train | |
+
+## 10. Evaluation outputs (Om)
 
 `results/{run_name}/eval_{dataset}.json`:
 ```json
 {
-  "run_name": "...", "dataset": "flores_hi", "step": 12500,
-  "per_head": [{"head": 0, "loss": 3.05, "ppl": 21.1, "top1": 0.41, "top5": 0.63,
-                "top1_in_group": 0.55, "top1_at_boundary": 0.33}],
-  "spec_decode": {"policy": "fixed_k", "mean_accepted_len": 1.42, "accept_rate_per_head": [0.42],
-                  "tokens_per_sec": 31.5, "greedy_tokens_per_sec": 24.0, "speedup": 1.31,
-                  "outputs_match_greedy": true},
-  "group_integrity": 0.71
+  "run_name": "R2_hi_mtp_k4_resblock", "dataset": "flores_hi", "step": 12500, "grouper": "hi_rules_v0", "git_commit": "...",
+  "per_head": [{"head": 0, "loss": 3.05, "ppl": 21.1, "top1": 0.41, "top5": 0.63, "n": 25000,
+                "top1_in_group": 0.55, "top1_at_boundary": 0.33, "loss_in_group": 1.6, "loss_at_boundary": 3.5,
+                "n_in_group": 8000, "n_at_boundary": 17000}],
+  "spec_decode": [{"policy": "fixed_k", "mean_accepted_len": 1.42, "accept_rate_per_head": [0.42, 0.20, 0.09],
+                   "tokens_per_sec": 31.5, "greedy_tokens_per_sec": 24.0, "speedup": 1.31,
+                   "outputs_match_greedy": true, "group_integrity": 0.71, "n_prompts": 200}]
 }
 ```
+In-group / at-boundary are defined exactly as `scripts/train.py`'s `evaluate` (target t+d+1 in source t's group). For the same model, data and step, OM-4's numbers must match train.py's logged eval to 1e-3.
 
-## 11. Draft policy contract (Om builds engine, Jainam writes policies)
+Per-token dump (`--dump_tokens`), `results/{run_name}/tokens_{dataset}.jsonl`, one line per (sentence, position, head):
+```json
+{"sent_id": 17, "token_idx": 5, "token": "▁रहा", "head": 2, "target_idx": 8, "correct": true, "rank": 1, "group_start": 0, "group_id": 3, "target_group_id": 3}
+```
+
+## 11. Draft policy contract (Om: engine + FixedK + ConfidenceCut; Jainam: GroupAware)
 
 ```python
 # mtp/eval/draft_policy.py
 class DraftPolicy(Protocol):
     name: str
     def num_draft_tokens(self, head_logits: list[torch.Tensor], context_ids: torch.Tensor, step_state: dict) -> int:
-        """Return how many of the k-1 drafted tokens to propose this step (0..k-1)."""
+        """head_logits: k tensors [V], every head's logits at the last position (index 0 = head 0).
+        context_ids: [T] tokens so far. Return how many of the k-1 drafts (heads 1..k-1) to propose, 0..k-1."""
 
-class FixedK:         # always propose all k-1       (baseline, Om ships this one)
-class ConfidenceCut:  # stop at first head whose max prob < tau
-class GroupAware:     # stop at predicted group boundary (Jainam)
+class FixedK:         # always k-1
+class ConfidenceCut:  # stop at the first head d >= 1 whose max softmax prob < tau
+class GroupAware:     # stop at the predicted end of the current word group (Jainam, in mtp/eval/group_aware.py)
+
+POLICIES = {"fixed_k": FixedK, "confidence_cut": ConfidenceCut, "group_aware": GroupAware}   # name -> class
 ```
-`spec_decode.generate(model, tokenizer, prompt_ids, max_new_tokens, policy) -> (output_ids, stats)`.
-Greedy verification: final output **must** be identical to plain greedy decoding with head 0. That is the correctness test.
+`GroupAware` lives in its own file so Om and Jainam never edit the same file; `draft_policy.py` imports it inside a `try` until it exists.
+`step_state` (filled by the engine every step): `{"boundary_logits": list[float] | None` (k values at the last position, from `aux`), `"tokenizer": tokenizer, "grouper": Grouper | None, "step": int}`.
+
+```python
+# mtp/eval/spec_decode.py
+def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None) -> tuple[list[int], dict]
+```
+Correctness: the output must be **identical** to plain greedy decoding with head 0 (the test). Stats: tokens generated, forward passes, mean accepted length, per-head acceptance, tokens/s, Group Integrity (share of accepted multi-token spans that end on a group boundary).
+
+## 12. Grouping statistics and probing outputs (Jai)
+
+- `results/grouping/stats_{lang}.json`: `{"grouper": ..., "tokenizer": ..., "n_sentences": ..., "words_per_group": ..., "tokens_per_group": ..., "tokens_per_word": ..., "same_group_rate": {"1": 0.33, "2": 0.08, "3": 0.025, "4": 0.008}}`, one object per (grouper, tokenizer) in a list.
+- `results/grouping/{lang}_scores.json`: per grouper, boundary P/R/F1, exact-group accuracy, per type; κ.
+- `results/probing/{lang}_{grouper}.json`: `{"layer": [0..L], "f1": [...], "acc": [...], "majority_baseline": ...}`.
