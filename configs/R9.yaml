@@ -7,6 +7,7 @@ model_name: smallstepai/Misal-1B-instruct-v0.1
 num_heads: 4
 head_type: resblock
 head_layers: 1
+head_backbone_grad: 0.1   # extra heads send 10% of their gradient into LoRA (2k-step pilot: head 0 +0.011 vs R0)
 lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}  # check Misal's module names before launching (JN-8)
 optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500, grad_accum: 1, weight_decay: 0.01}
 data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: mr_rules_v1, max_length: 128, eval_n: 100}
