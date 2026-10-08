@@ -21,7 +21,6 @@ Terms are returned unweighted; train.py passes lambda_s2 / lambda_s3 to LossWeig
 under the prefixes "struct/boundary_bce" and "struct/consistency".
 """
 
-import torch
 import torch.nn.functional as F
 
 VARIANTS = {

@@ -7,9 +7,10 @@ Builds tokenizer -> base model (mtp.device.pick_dtype) -> LoRA -> MTPModel ->
 loss terms -> LossWeighting -> AdamW, then trains for optim.max_steps.
 
 Data: the boundary cache (INTERFACES §3) if data.cache_dir/{lang}_{grouper}_{train,eval}
-exists; otherwise, for runs without group losses (R0-R2, R8-R9), raw IndicCorp text
-tokenized here. Batch i always holds the same examples, so resuming at step N just
-starts at batch N.
+exists; otherwise raw IndicCorp text (mtp.data.corpus), labelled on the fly with the
+data.grouper grouper (mtp.data.grouping) when the run has group losses. The eval set is
+labelled whenever the grouper exists, so every run logs in-group vs at-boundary top-1.
+Batch i always holds the same examples, so resuming at step N just starts at batch N.
 
 Run folder (INTERFACES §8): {run_root}/{run_name}/config.yaml, metrics.jsonl,
 step_{N}/lora, heads.pt, weighting.pt, optim.pt. optim.pt holds everything resume
@@ -33,53 +34,19 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-# Om's modules (OM-1, OM-2); stand-ins in scripts/_stubs_om.py until H1/H2 land.
-try:
-    from mtp.config import load_config, save_config
-except ImportError:
-    from _stubs_om import load_config, save_config
-try:
-    from mtp.config import apply_overrides
-except ImportError:
-    from _stubs_om import apply_overrides
-try:
-    from mtp.device import autocast_ctx, make_scaler, pick_device, pick_dtype
-except ImportError:
-    from _stubs_om import autocast_ctx, make_scaler, pick_device, pick_dtype
-try:
-    from mtp.utils.logging import MetricLogger
-except ImportError:
-    from _stubs_om import MetricLogger
-try:
-    from mtp.data.collate import Collator
-except ImportError:
-    from _stubs_om import Collator
-try:
-    from mtp.data.corpus import load_split
-except ImportError:
-    from _stubs_om import load_split
-try:
-    from mtp.model.checkpoint import latest_step, save_run
-except ImportError:
-    from _stubs_om import latest_step, save_run
-
+from mtp.config import apply_overrides, cfg_get, load_config, save_config
+from mtp.data.collate import Collator
+from mtp.data.corpus import load_split
+from mtp.data.grouping.align import label_batch
+from mtp.data.grouping.base import REGISTRY, get_grouper
+from mtp.device import autocast_ctx, make_scaler, pick_device
 from mtp.losses.mtp_ce import per_head_ce, shift_targets
-from mtp.losses.structural import StructuralLoss, needs_boundary_probes
+from mtp.losses.structural import StructuralLoss
 from mtp.losses.weighting import LossWeighting
-from mtp.model.heads import MTPModel
-
-
-def cfg_get(cfg, dotted, default=None):
-    """Optional config field with a default, so configs and RunConfig versions
-    that predate a field still load."""
-    node = cfg
-    for part in dotted.split("."):
-        if node is None or not hasattr(node, part):
-            return default
-        node = getattr(node, part)
-    return node
+from mtp.model.build import build_model
+from mtp.model.checkpoint import latest_step, load_weights, save_run
+from mtp.utils.logging import MetricLogger
 
 
 def seed_everything(seed):
@@ -99,30 +66,6 @@ def git_commit():
 
 
 # --------------------------------------------------------------------- build
-
-def build_model(cfg, device):
-    from peft import LoraConfig, get_peft_model
-    from transformers import AutoModelForCausalLM, AutoTokenizer
-
-    tokenizer = AutoTokenizer.from_pretrained(cfg.model_name)
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
-    base = AutoModelForCausalLM.from_pretrained(cfg.model_name, dtype=pick_dtype(cfg.dtype)).to(device)
-    base = get_peft_model(base, LoraConfig(
-        r=cfg.lora.r, lora_alpha=cfg.lora.alpha, lora_dropout=cfg.lora.dropout,
-        target_modules=list(cfg.lora.targets), bias="none", task_type="CAUSAL_LM",
-    ))
-    model = MTPModel(base, num_heads=cfg.num_heads, head_type=cfg.head_type,
-                     n_layers=cfg_get(cfg, "head_layers", 1),
-                     backbone_grad=cfg_get(cfg, "head_backbone_grad", 1.0),
-                     boundary_probes=uses_probes(cfg))
-    return model, tokenizer
-
-
-def uses_probes(cfg):
-    return bool(cfg_get(cfg, "losses.structural.enabled", False)
-                and needs_boundary_probes(cfg_get(cfg, "losses.structural.variant")))
-
 
 def build_aux_losses(cfg):
     """Callables (mtp_output, batch) -> dict[name, scalar], each with .term_names."""
@@ -156,42 +99,45 @@ def num_train_examples(cfg):
 
 def build_data(cfg, tokenizer):
     """Returns (train_examples, eval_examples): sequences of unpadded dicts."""
-    lang, grouper = cfg.lang, cfg_get(cfg, "data.grouper")
+    lang, grouper_name = cfg.lang, cfg_get(cfg, "data.grouper")
     cache_root = Path(cfg_get(cfg, "data.cache_dir", "") or "__missing__")
-    train_dir = cache_root / f"{lang}_{grouper}_train"
-    eval_dir = cache_root / f"{lang}_{grouper}_eval"
+    train_dir = cache_root / f"{lang}_{grouper_name}_train"
+    eval_dir = cache_root / f"{lang}_{grouper_name}_eval"
     eval_n = cfg_get(cfg, "data.eval_n", 100)
 
     if train_dir.exists() and eval_dir.exists():
         from datasets import load_from_disk
-        meta = train_dir.with_name(train_dir.name + "_meta.json")
-        meta = meta if meta.exists() else train_dir / "meta.json"
-        if meta.exists():
-            info = json.loads(meta.read_text(encoding="utf-8"))
-            tok_name = info.get("tokenizer") or info.get("tokenizer_name")
-            if tok_name and tok_name != cfg.model_name:
-                raise ValueError(f"cache {train_dir} was built with tokenizer {tok_name}, run uses {cfg.model_name}")
-        cols = ["input_ids", "attention_mask"] + (["group_start", "group_id"] if needs_groups(cfg) else [])
-        train = load_from_disk(str(train_dir)).select_columns(cols)
+        for meta in (train_dir / "meta.json", train_dir.with_name(train_dir.name + "_meta.json")):
+            if meta.exists():
+                info = json.loads(meta.read_text(encoding="utf-8"))
+                tok_name = info.get("tokenizer") or info.get("tokenizer_name")
+                if tok_name and tok_name != cfg.model_name:
+                    raise ValueError(f"cache {train_dir} was built with tokenizer {tok_name}, run uses {cfg.model_name}")
+        cols = ["input_ids", "attention_mask", "group_start", "group_id"]
+        train = load_from_disk(str(train_dir)).select_columns(cols if needs_groups(cfg) else cols[:2])
         train = train.select(range(min(len(train), num_train_examples(cfg))))
         ev = load_from_disk(str(eval_dir)).select_columns(cols)
         ev = ev.select(range(min(len(ev), eval_n)))
         print(f"data: boundary cache {train_dir.name} ({len(train)} train) / {eval_dir.name} ({len(ev)} eval)")
         return train, ev
 
-    if needs_groups(cfg):
-        raise FileNotFoundError(f"group losses need the boundary cache (H3); not found: {train_dir}")
-
+    grouper = get_grouper(grouper_name, lang) if grouper_name in REGISTRY else None
+    if needs_groups(cfg) and grouper is None:
+        raise FileNotFoundError(f"group losses need data.grouper to be a registered grouper or a boundary cache; "
+                                f"{grouper_name!r} is neither (registered: {sorted(REGISTRY)}; cache: {train_dir})")
     max_len = cfg.data.max_length
 
-    def tokenize(texts):
+    def prepare(texts, with_groups):
+        if with_groups:
+            return label_batch(texts, tokenizer, grouper, max_len)
         enc = tokenizer(texts, truncation=True, max_length=max_len)
         return [{"input_ids": i, "attention_mask": m} for i, m in zip(enc["input_ids"], enc["attention_mask"])]
 
     train_texts = load_split(lang, "train", num_train_examples(cfg))
     eval_texts = load_split(lang, cfg_get(cfg, "data.eval_split", "eval_small"))[:eval_n]
-    print(f"data: raw IndicCorp text, {len(train_texts)} train / {len(eval_texts)} eval sentences (no cache)")
-    return tokenize(train_texts), tokenize(eval_texts)
+    labelled = f"labelled with {grouper_name}" if grouper else f"no grouper ({grouper_name!r} not registered)"
+    print(f"data: raw IndicCorp text, {len(train_texts)} train / {len(eval_texts)} eval sentences, {labelled}")
+    return prepare(train_texts, needs_groups(cfg)), prepare(eval_texts, grouper is not None)
 
 
 def batch_at(examples, collator, index, batch_size):
@@ -205,10 +151,11 @@ def batch_at(examples, collator, index, batch_size):
 
 @torch.no_grad()
 def evaluate(model, examples, collator, cfg, device):
-    """Token-weighted per-head CE and top-1 over the eval examples."""
+    """Token-weighted per-head CE and top-1. If the examples carry group_id, also top-1 split by
+    whether the target is in the SOURCE token's group (in_group) or not (at_boundary), as in OM-4."""
     model.eval()
     k = model.num_heads
-    ce_sum, correct, count = [0.0] * k, [0] * k, [0] * k
+    stats = {d: {"ce": 0.0, "n": 0, "ok": 0, "n_in": 0, "ok_in": 0, "n_bd": 0, "ok_bd": 0} for d in range(k)}
     bs = cfg.optim.batch_size
     for i in range((len(examples) + bs - 1) // bs):
         rows = [examples[j] for j in range(i * bs, min((i + 1) * bs, len(examples)))]
@@ -218,14 +165,29 @@ def evaluate(model, examples, collator, cfg, device):
             out = model(ids, attention_mask=mask)
         sums = per_head_ce(out.logits, ids, mask, reduction="sum")
         for d, logits in enumerate(out.logits):
-            targets, valid = shift_targets(ids, mask, d + 1)
-            pred = logits[:, : targets.shape[1]].argmax(-1)
-            ce_sum[d] += sums[d].item()
-            correct[d] += (pred == targets)[valid].sum().item()
-            count[d] += valid.sum().item()
+            shift = d + 1
+            targets, valid = shift_targets(ids, mask, shift)
+            hit = logits[:, : targets.shape[1]].argmax(-1) == targets
+            st = stats[d]
+            st["ce"] += sums[d].item()
+            st["ok"] += hit[valid].sum().item()
+            st["n"] += valid.sum().item()
+            if "group_id" in batch and targets.shape[1] > 0:
+                gid = batch["group_id"]
+                known = valid & (gid[:, :-shift] >= 0) & (gid[:, shift:] >= 0)
+                same = gid[:, :-shift] == gid[:, shift:]
+                for tag, m in (("in", known & same), ("bd", known & ~same)):
+                    st[f"n_{tag}"] += m.sum().item()
+                    st[f"ok_{tag}"] += hit[m].sum().item()
     model.train()
-    return {d: {"loss": ce_sum[d] / max(count[d], 1), "top1": correct[d] / max(count[d], 1), "n": count[d]}
-            for d in range(k)}
+    res = {}
+    for d, st in stats.items():
+        r = {"loss": st["ce"] / max(st["n"], 1), "top1": st["ok"] / max(st["n"], 1), "n": st["n"]}
+        if st["n_in"] + st["n_bd"]:
+            r.update(top1_in_group=st["ok_in"] / max(st["n_in"], 1), n_in_group=st["n_in"],
+                     top1_at_boundary=st["ok_bd"] / max(st["n_bd"], 1), n_at_boundary=st["n_bd"])
+        res[d] = r
+    return res
 
 
 # --------------------------------------------------------------------- checkpoints
@@ -247,17 +209,10 @@ def save_checkpoint(run_dir, model, cfg, step, optimizer, scaler, weighting):
 
 
 def restore_checkpoint(run_dir, step, model, optimizer, scaler, weighting):
-    from peft import set_peft_model_state_dict
-    from safetensors.torch import load_file
-
     step_dir = Path(run_dir) / f"step_{step}"
     if not (step_dir / "optim.pt").exists():
         raise FileNotFoundError(f"{step_dir} has no optim.pt (interrupted save?); delete that folder and resume again")
-    result = set_peft_model_state_dict(model.base_model, load_file(step_dir / "lora" / "adapter_model.safetensors"))
-    missing = [k for k in result.missing_keys if "lora_" in k]
-    if missing:
-        raise RuntimeError(f"LoRA weights missing from {step_dir}: {missing[:3]}...")
-    model.load_head_state_dict(torch.load(step_dir / "heads.pt", weights_only=True))
+    load_weights(model, step_dir)
     if (step_dir / "weighting.pt").exists():
         weighting.load_state_dict(torch.load(step_dir / "weighting.pt", weights_only=True))
     # Our own file; RNG states need full unpickling.
@@ -268,8 +223,9 @@ def restore_checkpoint(run_dir, step, model, optimizer, scaler, weighting):
     random.setstate(state["rng"]["python"])
     np.random.set_state(state["rng"]["numpy"])
     torch.set_rng_state(state["rng"]["torch"])
-    if state["rng"]["cuda"] is not None and torch.cuda.is_available():
-        torch.cuda.set_rng_state_all(state["rng"]["cuda"])
+    cuda_rng = state["rng"]["cuda"]
+    if cuda_rng is not None and torch.cuda.is_available() and len(cuda_rng) == torch.cuda.device_count():
+        torch.cuda.set_rng_state_all(cuda_rng)
 
 
 # --------------------------------------------------------------------- train
@@ -369,7 +325,13 @@ def train(cfg, model, tokenizer, train_examples, eval_examples, run_dir, resume=
             for d, r in res.items():
                 logger.log(step, "eval", f"loss/head{d}", r["loss"])
                 logger.log(step, "eval", f"acc/top1/head{d}", r["top1"])
+                if "top1_in_group" in r:
+                    logger.log(step, "eval", f"acc/top1_in_group/head{d}", r["top1_in_group"])
+                    logger.log(step, "eval", f"acc/top1_at_boundary/head{d}", r["top1_at_boundary"])
             print(f"  >> eval step {step}: " + " | ".join(f"h{d} {r['loss']:.4f} ({100 * r['top1']:.1f}%)" for d, r in res.items()))
+            if "top1_in_group" in res[0]:
+                print("     in-group / boundary top-1: " + " | ".join(
+                    f"h{d} {100 * r['top1_in_group']:.1f}/{100 * r['top1_at_boundary']:.1f}%" for d, r in res.items()))
         if step % cfg.save_every == 0 or step == max_steps or out_of_time:
             save_checkpoint(run_dir, model, cfg, step, optimizer, scaler, weighting)
             print(f"  -> saved step_{step}")
