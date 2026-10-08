@@ -1,7 +1,7 @@
 # Structural loss: design note (JN-2)
 
-**Status:** draft for discussion; the pilot results at the end are to be filled in after Phase C.
-**Owner:** Jainam. **Feeds:** JN-5 (`mtp/losses/structural.py`), JN-9 (`GroupAware`), configs `pilot_*.yaml`.
+**Status:** design decided (2026-10-09); the pilot results at the end are to be filled in after Phase C.
+**Owner:** Jainam. **Feeds:** JN-5 (`mtp/losses/structural.py`), JN-9 (`GroupAware`), configs `pilot_*.yaml` (S2, S3, S3chain, S23, S3all).
 
 ## 0. Notation
 
@@ -62,9 +62,9 @@ L_S2,d = BCE(b_d(t), s(u)) averaged over valid (t, u).
 
 **S3 · In-group self-consistency (distillation).** The far head should match a better-informed head on the same target u, but only where the extra context that head saw lies inside the target's group:
 L_S3,d = mean over valid (t, u) with g(t+1) = g(u) of KL( sg[p_T(·)] ‖ p_d(·|t) ).
-Two choices of teacher:
+Two choices of teacher. **Both are piloted** (decision 1 in section 4):
 - **S3-chain** (as in the task file): teacher = head d−1 at t+1. For d ≥ 2 the teacher is itself an extra head and weak: head 1 is 23% top-1 in-group, the others are worse.
-- **S3-h0 (proposed default):** teacher = head 0 at u−1, the pretrained LM. It is the strongest teacher available and is good from step 0. Its in-group mask is g(t+1) = … = g(u), which is equivalent to g(t+1) = g(u) because group IDs never decrease. Mask rates are about 33–38% for head 1, 8–10% for head 2 and 2.5–3% for head 3, so S3 mostly trains head 1 and some of head 2.
+- **S3-h0:** teacher = head 0 at u−1, the pretrained LM. It is the strongest teacher available and is good from step 0. Its in-group mask is g(t+1) = … = g(u), which is equivalent to g(t+1) = g(u) because group IDs never decrease. Mask rates are about 33–38% for head 1, 8–10% for head 2 and 2.5–3% for head 3, so S3 mostly trains head 1 and some of head 2.
 - **Cost:** full-vocab KL (V = 30k) on the log-softmaxes the CE already computes. That is one extra [B, T, V] fp32 temporary per head, about 125 MB at B = 8, T = 128. Top-k sparse KL is not needed at this size.
 - **Control (S3-all):** the same KL with no mask. That is plain self-distillation and carries no linguistic content. If S3 does not beat S3-all, the mask, and therefore the grouping, contributes nothing. This is the same logic as R6, applied one level down.
 
@@ -78,7 +78,8 @@ Two choices of teacher:
 | R2 @ step 2000 | none (reference, taken from the R2 run, same seed and data) |
 | `pilot_S2` | S2 on heads 0–3 |
 | `pilot_S3` | S3-h0, in-group mask |
-| `pilot_S23` | S2 + S3-h0 |
+| `pilot_S3chain` | S3-chain, in-group mask |
+| `pilot_S23` | S2 + the better of S3-h0 / S3-chain |
 | `pilot_S3all` | S3-h0, no mask (control) |
 
 **Metric logging names:** `struct/boundary_bce/h{d}` and `struct/consistency/h{d}`.
@@ -90,14 +91,19 @@ Two choices of teacher:
 - **Guard:** head-0 CE no worse than R2@2000 + 0.02.
 - **Heads 2 and 3 in-group top-1:** reported with n, not used for the decision.
 - **Probe quality:** report b_d AUROC per head, since JN-9 depends on it.
+- **Teacher choice:** S3-h0 vs S3-chain is decided by the same rule; `pilot_S23` and `pilot_S3all` run with the winning teacher.
 - **The winner becomes R3.** If S3 does not beat S3-all, report that, and keep S2 for its use in JN-9.
 
-## 4. Open questions
+## 4. Decisions (2026-10-09)
 
-1. **Is S3-h0 still faithful to the proposal?** The proposal wants to penalise heads that "cross word-group boundaries inconsistently". S3-h0 penalises inconsistency inside a group against the LM. Using head 0 as teacher keeps that intent with a stronger teacher.
-2. **k = 4 or k = 3?** With 1.5-token groups, head 3 almost never sees in-group structure. Keep k = 4 for comparability with the Medusa literature, and report head 3 as the "structure-free" head.
-3. **For JI-8 and Marathi:** recompute section 1A with the full `hi_rules_v1` lists (light verbs, compound postpositions) and with the Misal tokenizer. Longer groups in tokens make the method's case stronger.
-4. **Blank rows in IndicCorp:** every other row is a blank separator. "First 1,000 rows" means 500 sentences, and the laptop's 100k-row runs saw about 50k sentences. `corpus.py` (OM-1) should state whether splits count raw rows or non-blank sentences. Gate B compares against laptop numbers produced with raw rows.
+1. **S3 teacher:** pilot both S3-h0 (head 0 at u−1) and S3-chain (head d−1 at t+1). S3-h0 keeps the proposal's intent of penalising inconsistency inside a group, with a stronger teacher; the pilot decides.
+2. **k = 4.** Kept for comparability with the Medusa literature. With 1.5-token groups, head 3 almost never sees in-group structure; report it as the "structure-free" head.
+3. **Pilot weights:** λ_S2 = 0.1, λ_S3 = 0.5, fixed. JN-7 revisits them.
+4. **S1** is not piloted.
+
+**Still open (other owners):**
+- **JI-8 / Marathi (Jai):** recompute section 1A with the full `hi_rules_v1` lists and with the Misal tokenizer. Longer groups in tokens make the method's case stronger.
+- **Blank rows in IndicCorp (Om, OM-1):** every other row is a blank separator. "First 1,000 rows" means 500 sentences, and the laptop's 100k-row runs saw about 50k sentences. `corpus.py` should state whether splits count raw rows or non-blank sentences. Gate B compares against laptop numbers produced with raw rows.
 
 ## 5. Pilot results
 
