@@ -12,6 +12,11 @@ head_type="resblock" : Medusa-1. h_d = ResBlock^n(h), logits_d = lm_head(h_d),
                        so every head starts as an exact copy of head 0. The
                        base lm_head is shared (frozen under LoRA), so each
                        extra head costs only n_layers * (hidden^2 + hidden).
+
+backbone_grad scales the gradient that heads 1..k-1 send back into the shared
+hidden state (and so into LoRA): 1.0 = full joint training, 0.0 = the extra
+heads train on a detached copy (LoRA learns from head 0 only, Medusa-1 style).
+The forward pass is identical for every value.
 """
 
 from dataclasses import dataclass, field
@@ -30,6 +35,8 @@ class MTPOutput:
     aux: dict = field(default_factory=dict)
     # aux["head_hidden"]: list of k tensors [B, T, H], the state each head's
     #   output layer reads (h_0 = hidden). Structural-loss probes sit on these.
+    # aux["boundary_logits"]: list of k tensors [B, T], present when the model has
+    #   boundary probes (S2): logit that token t+d+1 starts a new word group.
     # aux["past_key_values"]: present only when forward(use_cache=True).
 
 
@@ -51,11 +58,15 @@ class MTPModel(nn.Module):
     Wraps a HF causal LM (optionally PEFT/LoRA-wrapped) with k prediction heads.
 
     num_heads counts ALL heads including head 0 (num_heads = num_extra_heads + 1).
-    Extra heads live in self.extra_heads (len num_heads - 1); that ModuleList
-    is what checkpoints save next to the LoRA adapter.
+    Extra heads live in self.extra_heads (len num_heads - 1). With
+    boundary_probes=True every head d also gets a linear probe on h_d
+    (self.boundary_probes, len num_heads) for the S2 structural loss and the
+    GroupAware draft policy. Checkpoints save head_state_dict(): everything
+    except the base model.
     """
 
-    def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1, **kw):
+    def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1,
+                 backbone_grad: float = 1.0, boundary_probes: bool = False, **kw):
         super().__init__()
         if num_heads < 1:
             raise ValueError(f"num_heads must be >= 1, got {num_heads}")
@@ -63,11 +74,14 @@ class MTPModel(nn.Module):
             raise ValueError(f"head_type must be one of {HEAD_TYPES}, got {head_type!r}")
         if n_layers < 1:
             raise ValueError(f"n_layers must be >= 1, got {n_layers}")
+        if not 0.0 <= backbone_grad <= 1.0:
+            raise ValueError(f"backbone_grad must be in [0, 1], got {backbone_grad}")
 
         self.base_model = base_model
         self.num_heads = num_heads
         self.head_type = head_type
         self.n_layers = n_layers
+        self.backbone_grad = backbone_grad
 
         lm_head = self._lm_head()
         hidden_size = lm_head.in_features
@@ -85,6 +99,24 @@ class MTPModel(nn.Module):
                 nn.Sequential(*[ResBlock(hidden_size, **factory) for _ in range(n_layers)])
                 for _ in range(num_heads - 1)
             ])
+        self.boundary_probes = nn.ModuleList(
+            [nn.Linear(hidden_size, 1, **factory) for _ in range(num_heads)] if boundary_probes else []
+        )
+
+    def head_state_dict(self):
+        """Trainable non-base parameters (extra heads + probes), for heads.pt."""
+        return {k: v for k, v in self.state_dict().items() if not k.startswith("base_model.")}
+
+    def load_head_state_dict(self, state):
+        """Inverse of head_state_dict. Also accepts the legacy MedusaWrapper /
+        extra_heads-only format ("0.weight", ...)."""
+        if state and not any(k.startswith(("extra_heads.", "boundary_probes.")) for k in state):
+            state = {f"extra_heads.{k}": v for k, v in state.items()}
+        own = self.head_state_dict()
+        missing, unexpected = own.keys() - state.keys(), state.keys() - own.keys()
+        if missing or unexpected:
+            raise KeyError(f"head state mismatch: missing {sorted(missing)[:3]}, unexpected {sorted(unexpected)[:3]}")
+        self.load_state_dict(state, strict=False)
 
     # The decoder and lm_head are looked up through base_model on every call
     # rather than stored, so they are not registered twice in state_dict().
@@ -108,16 +140,20 @@ class MTPModel(nn.Module):
 
         logits = [lm_head(hidden)]
         head_hidden = [hidden]
+        a = self.backbone_grad
+        h_in = hidden if a == 1.0 else (hidden.detach() if a == 0.0 else a * hidden + (1 - a) * hidden.detach())
         for head in self.extra_heads:
             if self.head_type == "linear":
-                logits.append(head(hidden))
-                head_hidden.append(hidden)
+                logits.append(head(h_in))
+                head_hidden.append(h_in)
             else:
-                h_d = head(hidden)
+                h_d = head(h_in)
                 logits.append(lm_head(h_d))
                 head_hidden.append(h_d)
 
         aux = {"head_hidden": head_hidden}
+        if len(self.boundary_probes):
+            aux["boundary_logits"] = [probe(h).squeeze(-1) for probe, h in zip(self.boundary_probes, head_hidden)]
         if use_cache:
             aux["past_key_values"] = out.past_key_values
         return MTPOutput(logits=logits, hidden=hidden, aux=aux)

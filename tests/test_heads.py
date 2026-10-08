@@ -124,3 +124,47 @@ def test_use_cache_returns_past_key_values():
     with torch.no_grad():
         assert "past_key_values" not in model(ids, mask).aux
         assert model(ids, mask, use_cache=True).aux["past_key_values"] is not None
+
+
+@pytest.mark.parametrize("head_type", ["linear", "resblock"])
+def test_backbone_grad_scaling(head_type):
+    ids, mask = batch()
+
+    def lora_grad(a):
+        model = MTPModel(lora(tiny_base()), num_heads=3, head_type=head_type, backbone_grad=a)
+        if head_type == "resblock":  # non-zero W so the head path has a gradient to scale
+            for head in model.extra_heads:
+                torch.nn.init.normal_(head[0].linear.weight, std=0.1)
+        out = model(ids, mask)
+        sum(per_head_ce(out.logits[1:], ids, mask, reduction="mean")).backward()
+        return out, torch.cat([p.grad.flatten() for n, p in model.named_parameters() if "lora_" in n and p.grad is not None]
+                              or [torch.zeros(1)])
+
+    out1, g1 = lora_grad(1.0)
+    out0, g0 = lora_grad(0.0)
+    out_h, g_h = lora_grad(0.25)
+    for d in range(3):
+        torch.testing.assert_close(out0.logits[d], out1.logits[d])   # forward unchanged
+    assert g1.abs().sum() > 0
+    assert g0.abs().sum() == 0                                     # heads 1..k-1 don't reach LoRA
+    torch.testing.assert_close(g_h, 0.25 * g1)
+
+
+def test_head_state_dict_roundtrip_and_legacy_format():
+    src = MTPModel(tiny_base(), num_heads=3, head_type="resblock", boundary_probes=True)
+    for p in src.extra_heads.parameters():
+        torch.nn.init.normal_(p)
+    state = src.head_state_dict()
+    assert any(k.startswith("boundary_probes.") for k in state)
+    assert not any(k.startswith("base_model.") for k in state)
+    dst = MTPModel(tiny_base(seed=1), num_heads=3, head_type="resblock", boundary_probes=True)
+    dst.load_head_state_dict(state)
+    for k, v in dst.head_state_dict().items():
+        assert torch.equal(v, state[k])
+    # legacy: MedusaWrapper / extra_heads.state_dict() keys ("0.weight")
+    lin = MTPModel(tiny_base(), num_heads=2, head_type="linear")
+    legacy = {"0.weight": torch.randn(V, H)}
+    lin.load_head_state_dict(legacy)
+    assert torch.equal(lin.extra_heads[0].weight, legacy["0.weight"])
+    with pytest.raises(KeyError):
+        dst.load_head_state_dict({"extra_heads.0.0.linear.weight": torch.zeros(H, H)})
