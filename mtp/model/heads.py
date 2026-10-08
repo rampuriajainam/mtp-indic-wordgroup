@@ -12,6 +12,11 @@ head_type="resblock" : Medusa-1. h_d = ResBlock^n(h), logits_d = lm_head(h_d),
                        so every head starts as an exact copy of head 0. The
                        base lm_head is shared (frozen under LoRA), so each
                        extra head costs only n_layers * (hidden^2 + hidden).
+
+backbone_grad scales the gradient that heads 1..k-1 send back into the shared
+hidden state (and so into LoRA): 1.0 = full joint training, 0.0 = the extra
+heads train on a detached copy (LoRA learns from head 0 only, Medusa-1 style).
+The forward pass is identical for every value.
 """
 
 from dataclasses import dataclass, field
@@ -55,7 +60,8 @@ class MTPModel(nn.Module):
     is what checkpoints save next to the LoRA adapter.
     """
 
-    def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1, **kw):
+    def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1,
+                 backbone_grad: float = 1.0, **kw):
         super().__init__()
         if num_heads < 1:
             raise ValueError(f"num_heads must be >= 1, got {num_heads}")
@@ -63,11 +69,14 @@ class MTPModel(nn.Module):
             raise ValueError(f"head_type must be one of {HEAD_TYPES}, got {head_type!r}")
         if n_layers < 1:
             raise ValueError(f"n_layers must be >= 1, got {n_layers}")
+        if not 0.0 <= backbone_grad <= 1.0:
+            raise ValueError(f"backbone_grad must be in [0, 1], got {backbone_grad}")
 
         self.base_model = base_model
         self.num_heads = num_heads
         self.head_type = head_type
         self.n_layers = n_layers
+        self.backbone_grad = backbone_grad
 
         lm_head = self._lm_head()
         hidden_size = lm_head.in_features
@@ -108,12 +117,14 @@ class MTPModel(nn.Module):
 
         logits = [lm_head(hidden)]
         head_hidden = [hidden]
+        a = self.backbone_grad
+        h_in = hidden if a == 1.0 else (hidden.detach() if a == 0.0 else a * hidden + (1 - a) * hidden.detach())
         for head in self.extra_heads:
             if self.head_type == "linear":
-                logits.append(head(hidden))
-                head_hidden.append(hidden)
+                logits.append(head(h_in))
+                head_hidden.append(h_in)
             else:
-                h_d = head(hidden)
+                h_d = head(h_in)
                 logits.append(lm_head(h_d))
                 head_hidden.append(h_d)
 

@@ -1,0 +1,21 @@
+# R8: Marathi NTP
+# Run matrix: docs/plan/README.md §6. Fields: INTERFACES §6 (+ optional: head_layers, optim.grad_accum,
+# optim.weight_decay, data.eval_n, weighting.head_decay, log_every). TBD = decided later; train.py fails loudly on it.
+run_name: R8_mr_ntp
+lang: mr
+model_name: smallstepai/Misal-1B-instruct-v0.1
+num_heads: 1
+head_type: linear
+head_layers: 1
+lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}  # check Misal's module names before launching (JN-8)
+optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500, grad_accum: 1, weight_decay: 0.01}
+data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: mr_rules_v1, max_length: 128, eval_n: 100}
+losses:
+  structural: {enabled: false, variant: null, weight: 1.0}
+  contrastive: {enabled: false, weight: 0.05, temperature: 0.1}
+weighting: {scheme: fixed, head_decay: 1.0}
+log_every: 20
+eval_every: 250
+save_every: 500
+seed: 42
+dtype: auto
