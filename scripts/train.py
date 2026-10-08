@@ -169,7 +169,7 @@ def build_data(cfg, tokenizer):
         return [{"input_ids": i, "attention_mask": m} for i, m in zip(enc["input_ids"], enc["attention_mask"])]
 
     train_texts = load_split(lang, "train", num_train_examples(cfg))
-    eval_texts = load_split(lang, "eval_small")[:eval_n]
+    eval_texts = load_split(lang, cfg_get(cfg, "data.eval_split", "eval_small"))[:eval_n]
     print(f"data: raw IndicCorp text, {len(train_texts)} train / {len(eval_texts)} eval sentences (no cache)")
     return tokenize(train_texts), tokenize(eval_texts)
 
