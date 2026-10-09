@@ -3,7 +3,12 @@ save -> load_run round trip and retention are in test_infra.py."""
 
 import pytest
 
-from mtp.model.checkpoint import latest_step, load_run
+from mtp.model.checkpoint import latest_step, load_run, save_run
+
+
+def test_save_run_rejects_keep_last_zero(tmp_path):
+    with pytest.raises(ValueError, match="keep_last"):
+        save_run(tmp_path, model=None, cfg=None, step=1, keep_last=0)
 
 
 def test_latest_step_ignores_partial_saves(tmp_path):

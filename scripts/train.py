@@ -23,6 +23,7 @@ needs beyond weights: optimizer, GradScaler, RNG states, step.
 
 import argparse
 import json
+import os
 import random
 import subprocess
 import sys
@@ -205,13 +206,28 @@ def save_checkpoint(run_dir, model, cfg, step, optimizer, scaler, weighting):
             "cuda": torch.cuda.get_rng_state_all() if torch.cuda.is_available() else None,
         },
     }
-    torch.save(state, Path(run_dir) / f"step_{step}" / "optim.pt")
+    # Written last and atomically: a step folder with optim.pt is complete (issue #13).
+    path = Path(run_dir) / f"step_{step}" / "optim.pt"
+    torch.save(state, path.with_suffix(".pt.tmp"))
+    os.replace(path.with_suffix(".pt.tmp"), path)
+
+
+def resumable_step(run_dir):
+    """Newest step whose save finished (has optim.pt). A session killed mid-save leaves a newer
+    step_N without it; that one is skipped with a warning and overwritten when training reaches N."""
+    last = latest_step(str(run_dir))
+    steps = sorted((int(p.parent.name[len("step_"):]) for p in Path(run_dir).glob("step_*/optim.pt")
+                    if p.parent.name[len("step_"):].isdigit()), reverse=True)
+    if not steps:
+        raise FileNotFoundError(f"no step_* folder in {run_dir} has optim.pt (first save interrupted?); "
+                                "delete the run folder and start again")
+    if steps[0] != last:
+        print(f"WARNING: step_{last} is an incomplete save (no optim.pt); resuming from step_{steps[0]}")
+    return steps[0]
 
 
 def restore_checkpoint(run_dir, step, model, optimizer, scaler, weighting):
     step_dir = Path(run_dir) / f"step_{step}"
-    if not (step_dir / "optim.pt").exists():
-        raise FileNotFoundError(f"{step_dir} has no optim.pt (interrupted save?); delete that folder and resume again")
     load_weights(model, step_dir)
     if (step_dir / "weighting.pt").exists():
         weighting.load_state_dict(torch.load(step_dir / "weighting.pt", weights_only=True))
@@ -266,8 +282,8 @@ def train(cfg, model, tokenizer, train_examples, eval_examples, run_dir, resume=
     if last is not None:
         if resume != "auto":
             raise FileExistsError(f"{run_dir} already has step_{last}; pass --resume auto or pick a new run_name")
-        restore_checkpoint(run_dir, last, model, optimizer, scaler, weighting)
-        start = last
+        start = resumable_step(run_dir)
+        restore_checkpoint(run_dir, start, model, optimizer, scaler, weighting)
         print(f"resumed from step {start}")
     cfg.git_commit = git_commit()
     if not (run_dir / "config.yaml").exists():

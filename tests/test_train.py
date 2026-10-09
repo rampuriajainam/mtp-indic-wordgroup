@@ -112,6 +112,32 @@ def test_resume_matches_uninterrupted_run(tmp_path, scheme):
         torch.testing.assert_close(a[name], b[name], rtol=0, atol=0, msg=name)
 
 
+def test_resume_skips_interrupted_save(tmp_path, capsys):
+    """Issue #13: a session killed between heads.pt and optim.pt leaves a step that resume must skip."""
+    full = run(make_cfg(tmp_path), tmp_path / "full")
+    cfg = make_cfg(tmp_path)
+    cfg.optim.max_steps = 3
+    run(cfg, tmp_path / "split")
+    partial = tmp_path / "split" / "step_6"  # simulate the kill: weights written, optim.pt not
+    partial.mkdir()
+    (partial / "heads.pt").write_bytes(b"truncated")
+    (tmp_path / "split" / "step_3" / "optim.pt.tmp").write_bytes(b"leftover")
+
+    resumed = run(make_cfg(tmp_path), tmp_path / "split", resume="auto")
+    assert "resuming from step_3" in capsys.readouterr().out
+    a, b = trainable_state(full), trainable_state(resumed)
+    for name in a:
+        torch.testing.assert_close(a[name], b[name], rtol=0, atol=0, msg=name)
+    assert (partial / "optim.pt").exists() and not (partial / "optim.pt.tmp").exists()
+
+
+def test_resume_without_any_complete_save_fails(tmp_path):
+    (tmp_path / "run" / "step_3").mkdir(parents=True)
+    (tmp_path / "run" / "step_3" / "heads.pt").write_bytes(b"x")
+    with pytest.raises(FileNotFoundError, match="optim.pt"):
+        run(make_cfg(tmp_path), tmp_path / "run", resume="auto")
+
+
 def test_refuses_to_overwrite_existing_run(tmp_path):
     cfg = make_cfg(tmp_path)
     cfg.optim.max_steps = 3

@@ -22,6 +22,8 @@ from mtp.config import cfg_get, load_config, save_config
 
 
 def save_run(run_dir, model, cfg, step, optimizer=None, weighting=None, keep_last=2):
+    if keep_last < 1:  # [:-0] would keep everything
+        raise ValueError(f"keep_last must be >= 1, got {keep_last}")
     run_dir = Path(run_dir)
     step_dir = run_dir / f"step_{step}"
     step_dir.mkdir(parents=True, exist_ok=True)
