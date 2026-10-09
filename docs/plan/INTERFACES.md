@@ -259,7 +259,11 @@ POLICIES = {"fixed_k": FixedK, "confidence_cut": ConfidenceCut, "group_aware": G
 
 ```python
 # mtp/eval/spec_decode.py
-def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None) -> tuple[list[int], dict]
+def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None, *, use_cache=True, amp=None) -> tuple[list[int], dict]
+def greedy_generate(model, tokenizer, prompt_ids, max_new_tokens, *, use_cache=True, amp=None) -> tuple[list[int], dict]  # base LM = head 0
+def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64, grouper=None, use_cache=True, amp=None) -> list[dict]  # §10 spec_decode entries
+def make_prompts(texts, tokenizer, n=200, min_words=8, max_words=16, seed=0) -> list[list[int]]
+# amp: a context-manager factory, e.g. lambda: autocast_ctx(cfg). The engine clamps a policy's answer to 0..k-1.
 ```
 Correctness: the output must be **identical** to plain greedy decoding with head 0 (the test). Stats: tokens generated, forward passes, mean accepted length, per-head acceptance, tokens/s, Group Integrity (share of accepted multi-token spans that end on a group boundary).
 
