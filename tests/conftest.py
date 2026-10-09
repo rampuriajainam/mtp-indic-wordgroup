@@ -13,7 +13,7 @@ WORDS = ("मैं कल बाजार जा रहा था। वह घ
 def make_tiny_tokenizer():
     """Word-level tokenizer with SentencePiece-style '▁' prefixes: offsets include the leading
     space, exactly like ganga-1b's tokenizer. No BOS/EOS added. Unknown words -> <unk>."""
-    from tokenizers import Tokenizer, models, pre_tokenizers
+    from tokenizers import Tokenizer, decoders, models, pre_tokenizers
     from transformers import PreTrainedTokenizerFast
 
     vocab = {"<pad>": 0, "<unk>": 1, "<s>": 2, "</s>": 3}
@@ -21,6 +21,7 @@ def make_tiny_tokenizer():
         vocab.setdefault("▁" + w, len(vocab))
     tk = Tokenizer(models.WordLevel(vocab, unk_token="<unk>"))
     tk.pre_tokenizer = pre_tokenizers.Metaspace()
+    tk.decoder = decoders.Metaspace()  # decode() gives clean text, as ganga-1b does
     return PreTrainedTokenizerFast(tokenizer_object=tk, pad_token="<pad>", unk_token="<unk>",
                                    bos_token="<s>", eos_token="</s>")
 

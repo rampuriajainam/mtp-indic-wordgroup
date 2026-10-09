@@ -29,10 +29,10 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `scripts/train.py` | training entry point | [exists] |
 | `notebooks/kaggle_train.ipynb` | Kaggle training | [exists] |
 | `mtp/losses/contrastive.py` | SupCon over word groups | [todo: Jainam, P2] |
-| `mtp/eval/draft_policy.py` | `DraftPolicy`, `FixedK`, `ConfidenceCut`, `POLICIES` registry | [todo: Om] |
+| `mtp/eval/draft_policy.py` | `DraftPolicy`, `FixedK`, `ConfidenceCut`, `POLICIES` registry, `get_policy` | [exists] |
 | `mtp/eval/group_aware.py` | `GroupAware` policy | [todo: Jainam] |
 | `mtp/eval/head_accuracy.py` | `evaluate_heads` (per-head loss/ppl/top-k, in-group split, token dump; ppl lives here, no separate `perplexity.py`) | [exists] |
-| `mtp/eval/spec_decode.py` | self-speculative decoding engine | [todo: Om] |
+| `mtp/eval/spec_decode.py` | self-speculative decoding engine (`generate`, `greedy_generate`, `evaluate_spec_decode`, `make_prompts`) | [exists] |
 | `scripts/evaluate.py`, `notebooks/kaggle_eval.ipynb` | evaluation entry point | [todo: Om] |
 | `mtp/data/grouping/{random_grouper,trankit_grouper,marathi_rules}.py` | groupers | [todo: Jai] |
 | `mtp/eval/group_metrics.py`, `scripts/{score_groupers,group_stats,probe_layers,annotate}.py` | grouper quality, statistics, probing | [todo: Jai] |
@@ -259,7 +259,11 @@ POLICIES = {"fixed_k": FixedK, "confidence_cut": ConfidenceCut, "group_aware": G
 
 ```python
 # mtp/eval/spec_decode.py
-def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None) -> tuple[list[int], dict]
+def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None, *, use_cache=True, amp=None) -> tuple[list[int], dict]
+def greedy_generate(model, tokenizer, prompt_ids, max_new_tokens, *, use_cache=True, amp=None) -> tuple[list[int], dict]  # base LM = head 0
+def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64, grouper=None, use_cache=True, amp=None) -> list[dict]  # §10 spec_decode entries
+def make_prompts(texts, tokenizer, n=200, min_words=8, max_words=16, seed=0) -> list[list[int]]
+# amp: a context-manager factory, e.g. lambda: autocast_ctx(cfg). The engine clamps a policy's answer to 0..k-1.
 ```
 Correctness: the output must be **identical** to plain greedy decoding with head 0 (the test). Stats: tokens generated, forward passes, mean accepted length, per-head acceptance, tokens/s, Group Integrity (share of accepted multi-token spans that end on a group boundary).
 
