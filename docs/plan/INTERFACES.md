@@ -33,7 +33,7 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `mtp/eval/group_aware.py` | `GroupAware` policy | [todo: Jainam] |
 | `mtp/eval/head_accuracy.py` | `evaluate_heads` (per-head loss/ppl/top-k, in-group split, token dump; ppl lives here, no separate `perplexity.py`) | [exists] |
 | `mtp/eval/spec_decode.py` | self-speculative decoding engine (`generate`, `greedy_generate`, `evaluate_spec_decode`, `make_prompts`) | [exists] |
-| `scripts/evaluate.py`, `notebooks/kaggle_eval.ipynb` | evaluation entry point | [todo: Om] |
+| `scripts/evaluate.py`, `notebooks/kaggle_eval.ipynb` | evaluation entry point: per-head eval → §10 JSON (`--spec_decode` lands with OM-6) | [exists] |
 | `mtp/data/grouping/{random_grouper,trankit_grouper,marathi_rules}.py` | groupers | [todo: Jai] |
 | `mtp/eval/group_metrics.py`, `scripts/{score_groupers,group_stats,probe_layers,annotate}.py` | grouper quality, statistics, probing | [todo: Jai] |
 | `mtp/data/boundary_cache.py`, `scripts/build_boundary_cache.py` | optional pre-labelled cache | [todo: Jai, P2] |
