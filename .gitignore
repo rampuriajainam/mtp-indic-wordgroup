@@ -10,3 +10,4 @@ runs/
 boundary_cache/
 wandb/
 CLAUDE.local.md
+results/**/tokens_*.jsonl
