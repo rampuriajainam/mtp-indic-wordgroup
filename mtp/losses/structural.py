@@ -16,9 +16,17 @@ S3  consistency, every extra head d >= 1:
     mask "in_group": g(t+1) == g(u)  (the extra context the teacher saw lies in u's group)
     mask "all":      every valid pair (control: plain self-distillation)
 
-Variants: S2 | S3_h0 | S3_chain | S3_all | S23 (S2 + S3 with s3_teacher, default h0).
-Terms are returned unweighted; train.py passes lambda_s2 / lambda_s3 to LossWeighting
-under the prefixes "struct/boundary_bce" and "struct/consistency".
+S3_mix (JN-5 pilots 2): both masks at once, same teacher (s3_teacher, default chain):
+      struct/consistency/h{d}     in-group pairs   (weight lambda_s3)
+      struct/consistency_all/h{d} every valid pair (weight lambda_s3_all)
+    Pilots 1: in-group S3 lifts in-group top-1 but costs at boundaries; S3_all lifts overall
+    top-1 but not in-group. S3_mix tests whether the two gains add up.
+
+Variants: S2 | S3_h0 | S3_chain | S3_all | S23 (S2 + S3 with s3_teacher, default h0)
+          | S3_mix | S23_mix (S2 + S3_mix).
+Terms are returned unweighted; train.py passes lambda_s2 / lambda_s3 / lambda_s3_all to
+LossWeighting under the prefixes "struct/boundary_bce", "struct/consistency" and
+"struct/consistency_all".
 """
 
 import torch.nn.functional as F
@@ -29,7 +37,10 @@ VARIANTS = {
     "S3_chain": {"s2": False, "s3": ("chain", "in_group")},
     "S3_all": {"s2": False, "s3": ("h0", "all")},
     "S23": {"s2": True, "s3": ("h0", "in_group")},
+    "S3_mix": {"s2": False, "s3": ("chain", "in_group"), "s3_all": True},
+    "S23_mix": {"s2": True, "s3": ("chain", "in_group"), "s3_all": True},
 }
+TEACHER_SETTABLE = ("S23", "S3_mix", "S23_mix")  # s3_teacher overrides the default teacher
 
 
 def needs_boundary_probes(variant) -> bool:
@@ -44,7 +55,7 @@ def _zero(like):
 
 
 class StructuralLoss:
-    def __init__(self, variant: str, num_heads: int, s3_teacher: str = "h0", **kw):
+    def __init__(self, variant: str, num_heads: int, s3_teacher: str | None = None, **kw):
         if variant not in VARIANTS:
             raise ValueError(f"unknown structural variant {variant!r}; one of {sorted(VARIANTS)}")
         spec = VARIANTS[variant]
@@ -52,7 +63,8 @@ class StructuralLoss:
         self.num_heads = num_heads
         self.use_s2 = spec["s2"]
         self.s3 = spec["s3"]
-        if variant == "S23":
+        self.s3_all = spec.get("s3_all", False)
+        if variant in TEACHER_SETTABLE and s3_teacher is not None:
             if s3_teacher not in ("h0", "chain"):
                 raise ValueError(f"s3_teacher must be 'h0' or 'chain', got {s3_teacher!r}")
             self.s3 = (s3_teacher, "in_group")
@@ -60,6 +72,8 @@ class StructuralLoss:
             [f"struct/boundary_bce/h{d}" for d in range(num_heads)] if self.use_s2 else []
         ) + (
             [f"struct/consistency/h{d}" for d in range(1, num_heads)] if self.s3 else []
+        ) + (
+            [f"struct/consistency_all/h{d}" for d in range(1, num_heads)] if self.s3_all else []
         )
 
     def __call__(self, out, batch) -> dict:
@@ -86,21 +100,25 @@ class StructuralLoss:
         if self.s3:
             teacher, mask_kind = self.s3
             for d in range(1, self.num_heads):
-                n = T - d - 1                       # student positions t = 0..T-d-2
-                name = f"struct/consistency/h{d}"
-                if n <= 0:
-                    terms[name] = _zero(out.logits[d])
-                    continue
-                stu = out.logits[d][:, :n]
-                tea = out.logits[0][:, d:T - 1] if teacher == "h0" else out.logits[d - 1][:, 1:T - d]
-                ok_t, ok_t1, ok_u = ok[:, :n], ok[:, 1:n + 1], ok[:, d + 1:]
-                mask = ok_t & ok_t1 & ok_u
-                if mask_kind == "in_group":
-                    mask = mask & (gid[:, 1:n + 1] == gid[:, d + 1:])
-                if not mask.any():
-                    terms[name] = _zero(stu)
-                    continue
-                log_s = F.log_softmax(stu[mask].float(), dim=-1)
-                log_t = F.log_softmax(tea[mask].detach().float(), dim=-1)
-                terms[name] = (log_t.exp() * (log_t - log_s)).sum(-1).mean()
+                terms[f"struct/consistency/h{d}"] = _consistency(out, ok, gid, d, teacher, mask_kind)
+                if self.s3_all:
+                    terms[f"struct/consistency_all/h{d}"] = _consistency(out, ok, gid, d, teacher, "all")
         return terms
+
+
+def _consistency(out, ok, gid, d, teacher, mask_kind):
+    """mean_mask KL( sg[p_teacher] || p_d(.|t) ) for head d (see module docstring)."""
+    T = ok.shape[1]
+    n = T - d - 1                       # student positions t = 0..T-d-2
+    if n <= 0:
+        return _zero(out.logits[d])
+    stu = out.logits[d][:, :n]
+    tea = out.logits[0][:, d:T - 1] if teacher == "h0" else out.logits[d - 1][:, 1:T - d]
+    mask = ok[:, :n] & ok[:, 1:n + 1] & ok[:, d + 1:]
+    if mask_kind == "in_group":
+        mask = mask & (gid[:, 1:n + 1] == gid[:, d + 1:])
+    if not mask.any():
+        return _zero(stu)
+    log_s = F.log_softmax(stu[mask].float(), dim=-1)
+    log_t = F.log_softmax(tea[mask].detach().float(), dim=-1)
+    return (log_t.exp() * (log_t - log_s)).sum(-1).mean()

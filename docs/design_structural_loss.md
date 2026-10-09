@@ -109,4 +109,41 @@ Two choices of teacher. **Both are piloted** (decision 1 in section 4):
 
 ## 5. Pilot results
 
-_To be filled in after the Phase C pilots._
+### Round 1 (2026-10-09, Kaggle T4 x2, commit 020faeb)
+
+2,000 steps each. Numbers are from the step-2000 checkpoints re-evaluated with `evaluate_heads`.
+IC = IndicCorp eval (~500 sentences; head-1 in-group n = 1886). FLORES = flores_hi devtest (1,012 sentences; n = 3116).
+Guard: h0 ≤ R2ref + 0.02 = 2.866 on IC.
+
+| run | IC h0 | IC h1 in-group | IC mean top-1 h1-3 | FLORES h0 | FLORES h1 in-group | FLORES mean top-1 h1-3 |
+|---|---|---|---|---|---|---|
+| pilot_R2ref | 2.8457 | 19.8% | 7.98% | 3.9444 | 9.2% | 5.97% |
+| pilot_S2 | 2.8458 | 19.6% | 7.97% | 3.9442 | 9.2% | 5.96% |
+| pilot_S3all | 2.8582 | 20.0% | **8.36%** | 3.9442 | 9.8% | **6.25%** |
+| pilot_S3 (h0 teacher) | 2.8684 ✗ | 21.5% | 7.67% | 3.9475 | **10.5%** | 5.72% |
+| pilot_S3chain | 2.8632 | 21.5% | 7.89% | 3.9457 | 10.4% | 6.07% |
+| pilot_S23 (h0 teacher) | 2.8686 ✗ | **21.7%** | 7.67% | 3.9475 | **10.5%** | 5.72% |
+| pilot_S3_l01 | 2.8494 | 20.8% | 7.92% | 3.9433 | 9.9% | 5.96% |
+
+Probe AUROC (b_d vs the group start of the target, IC): 0.94 / 0.74 / 0.59 / 0.55 for b0..b3. S2 and S23 agree to 3 decimals.
+
+Findings:
+1. **The mask matters.** In-group S3 lifts head-1 in-group top-1 by about 1.7 points (IC) and 1.2 points (FLORES), and heads 2-3 in-group by 4-6 points. S3all (same KL, no mask) leaves in-group almost unchanged (+0.2 / +0.6). The in-group gain needs the word groups; it is not generic self-distillation.
+2. **It costs at boundaries.** In-group S3 lowers overall top-1 for heads 2-3. S3all is the opposite: best overall top-1, no in-group gain. The two primary metrics disagree.
+3. **Teacher: chain beats h0.** Same in-group gain, better overall top-1, and it passes the guard (h0 teacher: +0.023, fails).
+4. **S2 does not change the heads** (S23 = S3 to 0.0002 on every number). It only supplies the probes. Probes are useful 1-2 tokens ahead (AUROC 0.94, 0.74) and near chance for b2/b3, so JN-9 should lean on b0/b1.
+5. λ_S3 = 0.1 is guard-safe but gets about half the in-group gain.
+6. **fp16 bug found and fixed (#19):** the zero term for a batch with no in-group pair was NaN under fp16 autocast, which stopped the in-group runs at step 134 on T4. The table is from the reruns.
+
+### Round 2 (pilots 2): settle R3, and try S3_mix
+
+Round 1 leaves two doubts for R3 = S23 with the chain teacher. First, its guard margin is thin (S3chain +0.018 against 0.02 at 2k steps). Second, S23 with the chain teacher itself was never run. Round 2 also tries a loss of our own, **S3_mix**: the in-group KL plus an all-pairs KL with a smaller weight, to see whether S3all's overall gain and the mask's in-group gain add up.
+
+| config | terms |
+|---|---|
+| `pilot_S23chain` | S2 + S3 in-group, chain teacher, λ_S3 0.5 (the R3 candidate) |
+| `pilot_S3chain_l025` | S3 in-group, chain, λ_S3 0.25 (R3 fallback if the guard margin is too thin) |
+| `pilot_S3mix` | S3_mix: in-group λ 0.5 + all-pairs λ 0.25, chain |
+| `pilot_S3mix_l025` | S3_mix: in-group λ 0.25 + all-pairs λ 0.25, chain (guard-safer) |
+
+Same rule as §3. A mix wins only if it keeps the in-group gain of S3chain **and** raises mean top-1 above R2ref on both IC and FLORES, inside the guard.

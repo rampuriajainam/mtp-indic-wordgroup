@@ -73,7 +73,7 @@ def build_aux_losses(cfg):
     losses = []
     if cfg_get(cfg, "losses.structural.enabled", False):
         losses.append(StructuralLoss(cfg_get(cfg, "losses.structural.variant"), cfg.num_heads,
-                                     s3_teacher=cfg_get(cfg, "losses.structural.s3_teacher", "h0")))
+                                     s3_teacher=cfg_get(cfg, "losses.structural.s3_teacher", None)))
     if cfg_get(cfg, "losses.contrastive.enabled", False):
         raise NotImplementedError("contrastive loss lands with JN-6")
     return losses
@@ -86,6 +86,7 @@ def aux_weights(cfg):
         "struct": w,
         "struct/boundary_bce": w * cfg_get(cfg, "losses.structural.lambda_s2", 0.1),
         "struct/consistency": w * cfg_get(cfg, "losses.structural.lambda_s3", 0.5),
+        "struct/consistency_all": w * cfg_get(cfg, "losses.structural.lambda_s3_all", 0.25),
         "contrastive": cfg_get(cfg, "losses.contrastive.weight", 1.0),
     }
 
