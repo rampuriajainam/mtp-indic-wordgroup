@@ -46,3 +46,9 @@ docs/                plan, interface contracts, design notes, run log
 tests/               pytest, CPU-only
 legacy/              the original laptop scripts, kept for reference
 ```
+
+## JI-1 and critical-path handoffs
+
+`get_grouper("hi_rules_v1")` provides expanded Hindi rules, longest-match compound postpositions, contextual light verbs and per-group types. v0 remains available. See [JI-1 handoff](docs/JI-1_HANDOFF.md).
+
+The authoritative [H1–H10 handoff table](docs/plan/README.md#5-dependencies-and-h1h10-handoffs) and [critical path](docs/plan/README.md#critical-path) follow the supplied PDF: OM-1 → OM-2 → OM-3 (H2), JI-1 → JI-6a (H3); Phases A–C first, D+E later. Existing on-the-fly labels continue to work; JI-6a is still a planned shared-cache deliverable.

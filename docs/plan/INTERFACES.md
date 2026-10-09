@@ -4,6 +4,8 @@
 
 The single source of truth for how the pieces connect. Code that matches these signatures can be written by any of us independently and will plug together. To change a contract: edit this file in the same PR and put "[contract change]" in the PR title.
 
+Scheduling comes from the PDF-aligned README (Phases A–C now, D+E later; H1–H10). Keep these actual package signatures: they include implemented extensions beyond the PDF snapshot.
+
 Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be written by that person.
 
 ---
@@ -18,7 +20,7 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `mtp/data/corpus.py` | `load_split(lang, split, n)` | [exists] |
 | `mtp/data/collate.py` | `Collator(pad_id)` | [exists] |
 | `mtp/data/grouping/base.py` | `Grouper` protocol, `REGISTRY`, `get_grouper`, `check_partition` | [exists] |
-| `mtp/data/grouping/hindi_rules.py` | `hi_rules_v0` (legacy lists) | [exists]; `hi_rules_v1` [todo: Jai] |
+| `mtp/data/grouping/hindi_rules.py` | `hi_rules_v0` (legacy lists), `hi_rules_v1` (JI-1) | [exists] |
 | `mtp/data/grouping/align.py` | `label_tokens`, `label_batch` | [exists] |
 | `mtp/model/heads.py` | `MTPModel`, `MTPOutput` | [exists] |
 | `mtp/model/build.py` | `build_model(cfg, device)`, `load_tokenizer` | [exists] |
@@ -28,7 +30,7 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `mtp/losses/weighting.py` | `LossWeighting` (fixed, uncertainty, dwa) | [exists] |
 | `scripts/train.py` | training entry point | [exists] |
 | `notebooks/kaggle_train.ipynb` | Kaggle training | [exists] |
-| `mtp/losses/contrastive.py` | SupCon over word groups | [todo: Jainam, P2] |
+| `mtp/losses/contrastive.py` | SupCon over word groups | [todo: Jainam, Phase C / JN-6] |
 | `mtp/eval/draft_policy.py` | `DraftPolicy`, `FixedK`, `ConfidenceCut`, `POLICIES` registry | [todo: Om] |
 | `mtp/eval/group_aware.py` | `GroupAware` policy | [todo: Jainam] |
 | `mtp/eval/head_accuracy.py` | `evaluate_heads` (per-head loss/ppl/top-k, in-group split, token dump; ppl lives here, no separate `perplexity.py`) | [exists] |
@@ -36,7 +38,7 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `scripts/evaluate.py`, `notebooks/kaggle_eval.ipynb` | evaluation entry point | [todo: Om] |
 | `mtp/data/grouping/{random_grouper,trankit_grouper,marathi_rules}.py` | groupers | [todo: Jai] |
 | `mtp/eval/group_metrics.py`, `scripts/{score_groupers,group_stats,probe_layers,annotate}.py` | grouper quality, statistics, probing | [todo: Jai] |
-| `mtp/data/boundary_cache.py`, `scripts/build_boundary_cache.py` | optional pre-labelled cache | [todo: Jai, P2] |
+| `mtp/data/boundary_cache.py`, `scripts/build_boundary_cache.py` | Hindi rules cache (JI-6a), then Trankit/random (JI-6b) | [todo: Jai, Phases A/B / H3/H5] |
 | `scripts/make_tables.py` | tables + figures | [todo: Om] |
 
 `legacy/` holds the original laptop scripts (see `legacy/README.md`).
@@ -69,7 +71,8 @@ legacy/         original scripts, unchanged
 ```python
 # mtp/data/grouping/base.py  [exists]
 GROUP_TYPES = ("single", "aux_chain", "postposition", "compound_postposition", "light_verb", "other")
-REGISTRY = {"hi_rules_v0": "mtp.data.grouping.hindi_rules:HindiRuleGrouperV0", ...}   # name -> "module:Class"
+REGISTRY = {"hi_rules_v0": "mtp.data.grouping.hindi_rules:HindiRuleGrouperV0",
+            "hi_rules_v1": "mtp.data.grouping.hindi_rules:HindiRuleGrouperV1", ...}   # name -> "module:Class"
 
 class Grouper(Protocol):
     name: str            # "hi_rules_v1", "trankit", "random", ...
@@ -92,9 +95,9 @@ def label_batch(sentences, tokenizer, grouper, max_length=128) -> list[dict]   #
 ```
 Rules: uses `offset_mapping` on the full sentence (a token starts group g if g's first character is in `[tok_start, tok_end)`, which covers SentencePiece's leading space); `group_id` is non-decreasing over real tokens; truncation may cut the last group. Identical to `legacy/boundary_alignment.py` on all 500 eval sentences.
 
-## 3. Boundary cache (optional; Jai)
+## 3. Boundary cache (Jai; JI-6a Phase A, JI-6b Phase B)
 
-Training does not need it: `scripts/train.py` labels raw text on the fly with `label_batch`. The cache is for slow groupers (Trankit) and for a fixed, shareable artifact.
+The PDF requires Hindi rules caches for H3, followed by Trankit/random caches for H5. The implemented on-the-fly path can run without them: `scripts/train.py` labels raw text on the fly with `label_batch`. The cache is for slow groupers (Trankit) and for a fixed, shareable artifact.
 
 A HuggingFace `datasets.Dataset` (`save_to_disk`) per `boundary_cache/{lang}_{grouper}_{split}/` with columns `text, input_ids, attention_mask, group_start, group_id` (unpadded; §2), and `meta.json` **inside** the folder: `{"grouper", "tokenizer", "max_length", "n_rows", "words_per_group", "tokens_per_group", "pct_tokens_group_start"}`. `train.py` checks `meta.json["tokenizer"] == cfg.model_name`. Splits as in §4. One Kaggle Dataset `mtp-boundary-cache`.
 
@@ -268,3 +271,11 @@ Correctness: the output must be **identical** to plain greedy decoding with head
 - `results/grouping/stats_{lang}.json`: `{"grouper": ..., "tokenizer": ..., "n_sentences": ..., "words_per_group": ..., "tokens_per_group": ..., "tokens_per_word": ..., "same_group_rate": {"1": 0.33, "2": 0.08, "3": 0.025, "4": 0.008}}`, one object per (grouper, tokenizer) in a list.
 - `results/grouping/{lang}_scores.json`: per grouper, boundary P/R/F1, exact-group accuracy, per type; κ.
 - `results/probing/{lang}_{grouper}.json`: `{"layer": [0..L], "f1": [...], "acc": [...], "majority_baseline": ...}`.
+
+## PDF reconciliation and legacy provenance
+
+The PDF's appendix incorrectly says expanded lists were never saved and describes `validate_on_real_data.py` as a corpus validator. `legacy/validate_on_real_data.py` saves expanded auxiliaries/light verbs, जाता/करता/वाला forms and a compound set, but only prints eight hand-picked sentences; `COMPOUND_POSTPOSITIONS` is never consumed. The quoted 25% / 1.33 measurements are historical run notes, not reproducible outputs of that file. Use `scripts/ji1_coverage.py` for an actual measured comparison.
+
+Legacy `check_datasets.py` uses the wrong `hin` config / `train` split. The package's `corpus.py` uses `indiccorp_v2` / `hin_Deva`. Legacy `boundary_alignment.py` loads a tokenizer at import; package `align.py` accepts an injected tokenizer and downloads nothing at import. Legacy files stay unchanged for provenance.
+
+The PDF calls the v1 class `HindiRuleGrouper`; the package uses `HindiRuleGrouperV1` with that name as an alias. No function signature changed. Cache metadata remains **inside** the cache directory, matching the existing loader (the PDF describes it as next to the directory).

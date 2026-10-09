@@ -10,17 +10,25 @@ the module is only imported when that grouper is requested.
 import importlib
 from typing import Protocol
 
-GROUP_TYPES = ("single", "aux_chain", "postposition", "compound_postposition", "light_verb", "other")
+GROUP_TYPES = (
+    "single",
+    "aux_chain",
+    "postposition",
+    "compound_postposition",
+    "light_verb",
+    "other",
+)
 
 REGISTRY = {
     "hi_rules_v0": "mtp.data.grouping.hindi_rules:HindiRuleGrouperV0",
-    # Jai adds: "hi_rules_v1", "mr_rules_v1", "trankit", "random"
+    "hi_rules_v1": "mtp.data.grouping.hindi_rules:HindiRuleGrouperV1",
+    # Jai adds: "mr_rules_v1", "trankit", "random"
 }
 
 
 class Grouper(Protocol):
-    name: str            # e.g. "hi_rules_v1", "trankit", "random"
-    lang: str            # "hi" or "mr"
+    name: str  # e.g. "hi_rules_v1", "trankit", "random"
+    lang: str  # "hi" or "mr"
 
     def group_words(self, sentence: str) -> list[list[str]]:
         """Whitespace words of `sentence`, partitioned into contiguous groups."""

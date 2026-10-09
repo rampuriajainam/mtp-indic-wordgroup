@@ -1,9 +1,9 @@
-# Team Plan (v2)
+# Team Plan · PDF-aligned phases and handoffs
 
 **Word-Group Guided Multi-Token Prediction for Hindi and Marathi**
 Team: Jainam (modeling & training) · Jai (data & linguistics) · Om (evaluation & infrastructure)
 
-This replaces the first plan (`docs/archive/MTP_Indic_Team_Plan_v1.pdf`). The ideas and task IDs are the same. What changed: most of the infrastructure is built, the measurements we made reshaped the method, and the work is re-cut so that **nobody is blocked by anybody today**.
+The uploaded [MTP_Indic_Team_Plan.pdf](MTP_Indic_Team_Plan.pdf) is authoritative for phase order and H1–H10 handoffs. The archive already contains implementation progress beyond its snapshot; keep that progress and the tested package interfaces. This update reconciles scheduling without rolling back code. Historical measurements below come from the repository's run notes, not a new run here.
 
 - [`INTERFACES.md`](INTERFACES.md): every signature and file format. Code must match it.
 - [`tasks/JAINAM.md`](tasks/JAINAM.md), [`tasks/JAI.md`](tasks/JAI.md), [`tasks/OM.md`](tasks/OM.md): one file per person. Paste its *Context* block + `INTERFACES.md` into Claude, then name the task.
@@ -19,9 +19,9 @@ This replaces the first plan (`docs/archive/MTP_Indic_Team_Plan_v1.pdf`). The id
 | Model | `MTPModel`: k heads, `linear` or zero-init `resblock` sharing the frozen LM head, optional boundary probes, `head_backbone_grad` |
 | Losses | per-head CE; structural S2 / S3 (+ S3-chain, S3-all, S23); weighting `fixed` / `uncertainty` / `dwa` |
 | Training | `scripts/train.py` (YAML configs, bit-exact resume, Kaggle time limits, in-group / boundary eval); `notebooks/kaggle_train.ipynb` |
-| Word groups | contract code: grouper registry, `hi_rules_v0` (legacy rules), `label_tokens` (= legacy alignment, verified on 500 sentences). Training labels data on the fly, so **no cache is needed to train** |
+| Word groups | contract code: grouper registry, `hi_rules_v0` (legacy rules), `hi_rules_v1` (JI-1), `label_tokens` (= legacy alignment, verified on 500 sentences). Training labels data on the fly, so **no cache is needed to train** |
 | Runs | R0, R1, R2 done on Kaggle (T4 x2, 0.29-0.38 s/step), Gate B passed, published as `mtp-run-R0/R1/R2` (`docs/runs.md`) |
-| Not started | grouper v1, random / Trankit groupers, gold set, evaluation suite, speculative decoding, Marathi, contrastive loss, group-aware decoding |
+| Not started | random / Trankit groupers, gold set, evaluation suite, speculative decoding, Marathi, contrastive loss, group-aware decoding |
 
 **Findings so far** (details in `docs/runs.md`, `docs/design_structural_loss.md`):
 1. **The NTP baseline is flat.** Held-out loss is 3.05 whatever the lr or rank. The base model already fits this data, which we report rather than fight.
@@ -53,70 +53,51 @@ What is new (each item names its owner):
 
 ## 3. Priorities
 
-- **P0:** needed for the review package and the core claim. Do these first.
-- **P1:** needed for the full report/paper.
-- **P2:** extras, if time and GPU quota allow.
-
-Effort: S = up to half a day, M = 1-2 days, L = 3+ days.
-
-| person | P0 | P1 | P2 |
-|---|---|---|---|
-| Jainam | JN-4 baselines, JN-5 pilots → R3, JN-8a R3 + R6a | JN-7 weighting → R5 + R6, JN-9 GroupAware, JN-8b Marathi | JN-6 contrastive (R4), JN-10 α ablation, R7, k sweep / seeds |
-| Jai | JI-1 rules v1, JI-4 random grouper, JI-8 reach + tokenizer study | JI-2 gold set, JI-3 Trankit, JI-5 scoring, JI-7 Marathi, JI-10 layer probing | JI-6 cache, JI-9 error analysis |
-| Om | OM-4 eval, OM-6 spec decoding, OM-7 evaluate.py, OM-8 evaluate runs | OM-9 tables + heatmap, OM-5 blind annotation | OM-10 Group Integrity by group type |
-
-Already done (by Jainam): JN-1 heads, JN-2 design, JN-3 train.py, JN-5 code, JN-7 code; OM-1 package, OM-2 checkpoints, OM-3 Kaggle notebook. Om owns those infra modules from now on (review them first, OM-0).
+Phases A–C are the current priority. Phases D+E (experiments and write-up) are later, after C. Existing P0/P1/P2 research notes do not override this order. Completed modules remain completed; review them rather than rebuilding them.
 
 ## 4. Order of work
 
-No dates, just order. Inside a phase the three columns run in parallel.
-
-### Phase 1 · Baselines, pilots, eval (now)
-| Jainam | Jai | Om |
-|---|---|---|
-| JN-4 finish R0-R2, gate, publish for Om | JI-1 `hi_rules_v1` | OM-0 review infra |
-| JN-5 run 6 pilots (one Kaggle session), pick → R3 | JI-4 `random` grouper | OM-4 eval: per-head loss/ppl/top-k, in-group split, token dumps |
-| JN-8a R3, then R6a (R3 + random) | JI-8 reach + tokenizer study (C3) | OM-6 spec-decode engine + FixedK + ConfidenceCut |
-| | JI-2 start the gold set (long task) | OM-7 `scripts/evaluate.py` + Kaggle eval notebook |
-
-**Gate 1 (review package ready):** R2, R3, R6a evaluated by OM-7 on IndicCorp eval + FLORES, spec decoding correct (outputs = greedy) with a speed-up number.
-
-### Phase 2 · Full method, controls, decoding
-| Jainam | Jai | Om |
-|---|---|---|
-| JN-7 weighting pilots → R5, then R6 | JI-2 finish gold set (+ 50 IDs to Om) | OM-8 evaluate every run |
-| JN-9 GroupAware policy | JI-3 Trankit, JI-5 scoring + κ | OM-5 blind annotation (50) |
-| JN-10 α ablation (P2), JN-6 contrastive (P2) | JI-10 layer-wise probing (C5) | OM-9 tables + figures, incl. heatmap |
-
-### Phase 3 · Marathi, ablations, write-up
-| Jainam | Jai | Om |
-|---|---|---|
-| JN-8b R8-R10 (Marathi), R7 | JI-7 Marathi rules + gold, JI-9 error analysis | OM-8/9 Marathi tables, Group Integrity |
-| § Method, results, conclusion | § Data + annotation, related work, C3/C5 | § Setup, evaluation, figures |
-
-## 5. Dependencies (the only ones)
-
-Everything else works off `main` today: groupers exist (`hi_rules_v0`), training labels data itself, `load_run` exists for evaluation.
-
-| # | from → to | what | until it lands |
+| Phase | Jainam | Jai | Om |
 |---|---|---|---|
-| D1 | Jainam → Om | finished runs as Kaggle Datasets `mtp-run-<ID>` | Om tests on a tiny local run (`tests/test_infra.py` shows how) |
-| D2 | Jai → Jainam | `random` grouper (R6a/R6), `hi_rules_v1` (final runs), `trankit` (R7), `mr_rules_v1` (R10) | runs use `hi_rules_v0`; switching is one config line |
-| D3 | Om → Jainam | spec-decode engine (`generate`) for GroupAware numbers | JN-9 is developed and unit-tested against the DraftPolicy contract with fake logits |
-| D4 | Om → Jai | per-token dumps (JI-9), 50 blind annotations (κ) | Jai scores groupers without κ |
-| D5 | Jai → Om | 50 gold sentence IDs (OM-5) | — |
+| A · Foundation | JN-1 heads → JN-2 design → JN-3 train.py | **JI-1 rules → JI-6a Hindi rules cache → JI-2 guide + 200 gold** | **OM-1 package → OM-2 checkpoints → OM-3 Kaggle notebook** |
+| B · Baselines + grouping quality; needs H2 | JN-4 reproduce R0/R1, train R2 | JI-3 Trankit → JI-4 random → JI-5 score/pick → JI-6b Trankit/random caches | OM-4 in-group eval → OM-5 blind annotations |
+| C · Method; needs H3/H4 | JN-5 structural pilots → JN-6 contrastive → JN-7 adaptive weighting | JI-7 Marathi rules/gold/cache → JI-8 group statistics | OM-6 speculative engine → OM-7 eval entry point/notebook |
+| D+E · Later, after C | JN-8 R3–R10 experiments → JN-9 GroupAware; method/results | JI-9 error analysis; data/annotation/related work | OM-8 evaluate runs → OM-9 tables/figures; setup/evaluation |
 
-Each handoff = a merged PR (or published Kaggle Dataset) + a message in the team chat.
+Gate B: R0/R1 within about 0.05 of the laptop losses before proceeding. The supplied run notes report this passed. Additional archive tasks (JI-10 probes, JN-10/11 ablations, OM-10) are optional later extensions, not PDF critical-path work.
 
-## 6. Run matrix
+## 5. Dependencies and H1–H10 handoffs
+
+Each handoff is a merged PR or published Kaggle Dataset plus a team-chat message. A local implementation alone does not prove that a publication handoff landed.
+
+| ID | Deliverable | From → To | Unblocks | Until it lands |
+|---|---|---|---|---|
+| H1 | OM-1 package/config/device/collate/logging | Om → everyone | modules inside `mtp/` | standalone modules matching INTERFACES |
+| H2 | OM-2 checkpoints + OM-3 Kaggle training notebook | Om → Jainam | JN-4 onward on Kaggle | JN-1–JN-3 and laptop tests |
+| H3 | JI-1 + JI-6a Hindi rules boundary caches | Jai → Jainam, Om | JN-5/JN-6 labels, OM-4 split | hand-built loss tests; R0–R2 need no labels |
+| H4 | OM-4 in-group/boundary evaluation | Om → Jainam | structural-loss selection | pilot-local logging |
+| H5 | JI-5 grouper decision + JI-6b Trankit/random caches | Jai → Jainam | later R5–R7 | rules cache from H3 |
+| H6 | OM-6 speculative engine | Om → Jainam | later JN-9 GroupAware | fake-logit policy tests |
+| H7 | JI-7 Marathi caches | Jai → Jainam | later R8–R10 | Hindi runs |
+| H8 | OM-5 50 blind annotations | Om → Jai | agreement in JI-5 | score without κ |
+| H9 | JI-2 gold sentence IDs, text only | Jai → Om | OM-5 | prepare annotation tooling |
+| H10 | JN-4/JN-8 trained runs published on Kaggle | Jainam → Om | OM-8 run evaluation | tiny runs or R1/R2 checkpoints |
+
+### Critical path
+
+**H2 and H3 are the PDF's training blockers.** Om's OM-1 → OM-2 → OM-3 and Jai's JI-1 → JI-6a come first; the gold set, Trankit and random control follow. Nobody needs to wait on Jainam's early tasks; his outgoing run handoff is H10.
+
+Implementation note: the current `train.py` already labels text on the fly, so caches are not a technical requirement for that path. This does **not** remove the planned H3 cache deliverable. Package/checkpoint/notebook code and baselines already exist in the archive; don't regress them. H3 remains unfinished until the Hindi train/eval/FLORES rules caches are built and published.
+
+## 6. Run matrix (archive research detail; experiments scheduled in D+E)
 
 Same seed (42), same data order, eval during training on `eval_small` (pilots on `eval`). Official numbers come from OM-7 on IndicCorp `eval` + FLORES. Every run has a YAML in `configs/`. α = `head_backbone_grad` (0.1 for all k=4 runs).
 
 | ID | P | lang | heads | extra losses | weighting | grouper | why | status |
 |---|---|---|---|---|---|---|---|---|
-| R0 | P0 | hi | 1 | – | – | – | NTP baseline | running |
-| R1 | P0 | hi | 2 linear (α=1) | – | sum | – | reproduce laptop MTP (gate) | running |
-| R2 | P0 | hi | 4 resblock | – | fixed 0.8^d | – | token-level MTP baseline | running |
+| R0 | P0 | hi | 1 | – | – | – | NTP baseline | done per run notes |
+| R1 | P0 | hi | 2 linear (α=1) | – | sum | – | reproduce laptop MTP (gate) | done per run notes |
+| R2 | P0 | hi | 4 resblock | – | fixed 0.8^d | – | token-level MTP baseline | done per run notes |
 | pilots | P0 | hi | 4 resblock | S2 / S3 / S3-chain / S23 / S3-all | fixed | v0 | pick the structural loss (+ `pilot_R2ref`) | ready |
 | R3 | P0 | hi | 4 resblock | structural (pilot winner) | fixed | best | method, part 1 | after pilots |
 | R6a | P0 | hi | 4 resblock | = R3 | fixed | **random** | control: is it the linguistics? | needs JI-4 |

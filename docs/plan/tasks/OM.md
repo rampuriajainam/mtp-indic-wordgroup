@@ -4,6 +4,10 @@
 
 ## Context (paste this to Claude)
 
+**Scheduling authority:** use the uploaded PDF's Phases A–C now and D+E later, and the H1–H10 table in `docs/plan/README.md`. Existing implementation details below are preserved. No P0/P1/P2 label overrides the PDF phase order.
+
+**Phase A:** OM-1 package → OM-2 checkpoints → OM-3 Kaggle notebook (H1/H2) already have implementations; OM-0 reviews them. OM-4/5 are Phase B, OM-6/7 Phase C; OM-8/9 and write-up are later. H3 supplies shared Hindi caches even though current labelling works on the fly.
+
 We are building *Word-Group Guided Multi-Token Prediction for Hindi and Marathi*. A 1B Hindi LM (`LingoIITGN/ganga-1b`, vocab 30k, tokenizer adds no BOS) is fine-tuned with LoRA plus extra prediction heads: head d predicts token t+d+1 from the same last hidden state (`MTPModel`, INTERFACES §5). Word groups (multi-word units like जा रहा था) come from Jai's groupers; Jainam trains the runs on Kaggle and publishes each as a Kaggle Dataset `mtp-run-<ID>`. My job: the evaluation suite (per-head loss/accuracy split by word-group structure, self-speculative decoding with speed-up), evaluating every run, the tables and figures, and owning the infrastructure modules.
 
 Already on `main` (infra I now own, written by Jainam to unblock training):
@@ -18,11 +22,11 @@ Kaggle notes: T4 x2; `pip uninstall -y torchao` before installing (`requirements
 
 ## Tasks
 
-### OM-0 · Take over the infra · P0 · S
+### OM-0 · Take over the infra · Phase A (review existing OM-1–OM-3) · S
 - Read `mtp/config.py`, `device.py`, `utils/logging.py`, `data/corpus.py`, `data/collate.py`, `model/build.py`, `model/checkpoint.py`, `notebooks/kaggle_train.ipynb`; run `python -m pytest -q`.
 - Fix or open an issue for anything wrong. From now on, changes to these go through you.
 
-### OM-4 · Per-head evaluation · P0 · M
+### OM-4 · Per-head evaluation · Phase B · M
 - `mtp/eval/head_accuracy.py` (+ `perplexity.py` if you prefer to split):
   ```python
   evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_path=None, texts=None) -> list[dict]
@@ -34,7 +38,10 @@ Kaggle notes: T4 x2; `pip uninstall -y torchao` before installing (`requirements
   - a hand-built batch on the tiny model where you know the answer (e.g. force logits);
   - **agreement:** on a tiny trained run, `evaluate_heads` equals `scripts/train.py`'s `evaluate` to 1e-3.
 
-### OM-6 · Self-speculative decoding engine · P0 · L
+### OM-5 · Blind double annotation · Phase B · S
+Jai gives you 50 gold sentence IDs (text only). Annotate them with `scripts/annotate.py` following `docs/annotation_guide.md` without looking at Jai's groups → `data/gold/hi_gold_om50.jsonl`. This is the agreement κ in the paper.
+
+### OM-6 · Self-speculative decoding engine · Phase C · L
 - `mtp/eval/spec_decode.py` with `generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None) -> (output_ids, stats)`. `mtp/eval/draft_policy.py` holds `DraftPolicy`, `FixedK`, `ConfidenceCut(tau)` and `POLICIES`; import `GroupAware` from `mtp/eval/group_aware.py` inside a `try`, since Jainam writes it (INTERFACES §11).
 - Loop:
   1. Heads 1..k-1 at the last position propose k-1 tokens (greedy argmax).
@@ -48,20 +55,17 @@ Kaggle notes: T4 x2; `pip uninstall -y torchao` before installing (`requirements
 - **Correctness test (must pass):** on the tiny model, for 20 random prompts and every policy (including a policy that proposes garbage), output ids == plain greedy ids exactly.
 - Prompts for real runs: the first 8-16 words of 200 FLORES devtest sentences, `max_new_tokens=64`, batch size 1, timed with `torch.cuda.synchronize()`.
 
-### OM-7 · `scripts/evaluate.py` + Kaggle eval notebook · P0 · M
+### OM-7 · `scripts/evaluate.py` + Kaggle eval notebook · Phase C · M
 - `python scripts/evaluate.py --run_dir <...> [--step N] --datasets indiccorp_eval flores_hi --grouper hi_rules_v0 --spec_decode --policies fixed_k confidence_cut group_aware [--dump_tokens]`
 - Writes `results/{run_name}/eval_{dataset}.json` exactly per INTERFACES §10 (commit these).
 - `notebooks/kaggle_eval.ipynb`: attach the run's Kaggle Dataset, `git clone`, uninstall torchao, install, run the script, show the JSON. Runs on your Kaggle quota.
-- Until D1 lands, test end to end on a tiny local run (see `tests/test_infra.py`). Tonight's R0/R1/R2 will be published as `mtp-run-R0/R1/R2`.
+- Until H10 lands, test end to end on a tiny local run (see `tests/test_infra.py`). The archive run notes report R0/R1/R2 published as `mtp-run-R0/R1/R2`.
 
-### OM-8 · Evaluate every run · P0 · ongoing
+### OM-8 · Evaluate every run · Phase D+E · ongoing
 - As Jainam posts each `mtp-run-<ID>`, run OM-7 on it and push the JSON. Keep `results/STATUS.md`: a checklist of runs × datasets × policies.
 - Sanity-flag anything odd: head 0 of an MTP run much worse than R0, speed-up < 1, `outputs_match_greedy` false.
 
-### OM-5 · Blind double annotation · P1 · S
-Jai gives you 50 gold sentence IDs (text only). Annotate them with `scripts/annotate.py` following `docs/annotation_guide.md` without looking at Jai's groups → `data/gold/hi_gold_om50.jsonl`. This is the agreement κ in the paper.
-
-### OM-9 · Tables + figures · P1 · M
+### OM-9 · Tables + figures · Phase D+E · M
 - `scripts/make_tables.py` → `results/tables/*.md` + `*.tex`, `results/figures/*.pdf`.
 - **Table 1:** main results R0-R7 (hi). Columns: head-0 ppl, per-head top-1 (h1-h3), in-group top-1 (h1-h3), mean accepted length, speed-up.
 - **Table 2:** Marathi R8-R10.
@@ -75,8 +79,8 @@ Jai gives you 50 gold sentence IDs (text only). Annotate them with `scripts/anno
   - (d) **lookahead heatmap**, the headline figure: one sentence, each token coloured by the smallest head that predicted it correctly, word-group brackets above. Use a Devanagari font (Noto Sans Devanagari), a colour-blind-safe palette, and vector PDF.
 - Hyper-parameters in the setup table are read from the run configs automatically.
 
-### OM-10 · Decoding by group type · P2 · S
+### OM-10 · Decoding by group type · Phase later optional · S
 Accepted length and Group Integrity broken down by the group type the draft starts in (`grouper.group_types`). Shows where structure-aware drafting helps.
 
-### Write-up
+### Write-up · Phase E (later)
 Experimental setup (hardware, dtype policy, hyper-parameters from configs, eval sets, decoding setup); evaluation section (metric definitions: per-head accuracy, in-group split, acceptance length, Group Integrity; all tables and figures; appendix with per-run numbers).
