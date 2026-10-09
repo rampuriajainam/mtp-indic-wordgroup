@@ -44,7 +44,8 @@ def evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_pa
     examples: unpadded dicts, e.g. label_batch(texts, tokenizer, grouper). Without group_id the
     in-group / at-boundary fields are None (n_* = 0).
     dump_path: write the §10 per-token dump (one line per sentence, position, head); needs tokenizer
-    for the token strings. texts, if given, must line up with examples (sent_id indexes both).
+    for the token strings. texts, if given, must line up with examples (sent_id indexes both) and
+    fill each dump line's "text", so the dump can be re-grouped on its own (JI-9); null otherwise.
     """
     top_k = tuple(sorted(set(top_k) | {1}))
     if texts is not None and len(texts) != len(examples):
@@ -95,7 +96,7 @@ def evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_pa
                 if dump is not None:
                     target_logit = lg.float().gather(-1, targets.unsqueeze(-1))
                     rank = (lg.float() > target_logit).sum(-1) + 1
-                    _write_dump(dump, tokenizer, start, d, ids, valid, hit1, rank, batch)
+                    _write_dump(dump, tokenizer, texts, start, d, ids, valid, hit1, rank, batch)
     finally:
         if dump is not None:
             dump.close()
@@ -103,12 +104,13 @@ def evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_pa
     return [_finish(d, st, top_k, has_groups) for d, st in enumerate(stats)]
 
 
-def _write_dump(f, tokenizer, first_sent, head, ids, valid, hit1, rank, batch):
+def _write_dump(f, tokenizer, texts, first_sent, head, ids, valid, hit1, rank, batch):
     shift = head + 1
     gs, gid = batch.get("group_start"), batch.get("group_id")
     for b, t in valid.nonzero().tolist():
         f.write(json.dumps({
-            "sent_id": first_sent + b, "token_idx": t,
+            "sent_id": first_sent + b, "text": texts[first_sent + b] if texts is not None else None,
+            "token_idx": t,
             "token": tokenizer.convert_ids_to_tokens(int(ids[b, t])),
             "head": head, "target_idx": t + shift,
             "correct": bool(hit1[b, t]), "rank": int(rank[b, t]),

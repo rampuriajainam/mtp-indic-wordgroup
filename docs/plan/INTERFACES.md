@@ -230,12 +230,13 @@ In-group / at-boundary are defined exactly as `scripts/train.py`'s `evaluate` (t
 ```python
 # mtp/eval/head_accuracy.py  [exists]
 def evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_path=None, texts=None, tokenizer=None) -> list[dict]
-# one dict per head (the per_head fields above, top{k} for each k); dump_path needs tokenizer (token strings)
+# one dict per head (the per_head fields above, top{k} for each k); dump_path needs tokenizer (token strings);
+# texts (aligned with examples) fill the dump's "text" field, null if not given
 ```
 
 Per-token dump (`--dump_tokens`), `results/{run_name}/tokens_{dataset}.jsonl`, one line per (sentence, position, head):
 ```json
-{"sent_id": 17, "token_idx": 5, "token": "▁रहा", "head": 2, "target_idx": 8, "correct": true, "rank": 1, "group_start": 0, "group_id": 3, "target_group_id": 3}
+{"sent_id": 17, "text": "मैं कल बाजार जा रहा था।", "token_idx": 5, "token": "▁रहा", "head": 2, "target_idx": 8, "correct": true, "rank": 1, "group_start": 0, "group_id": 3, "target_group_id": 3}
 ```
 
 ## 11. Draft policy contract (Om: engine + FixedK + ConfidenceCut; Jainam: GroupAware)
