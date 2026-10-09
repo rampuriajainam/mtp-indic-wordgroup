@@ -31,7 +31,7 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `mtp/losses/contrastive.py` | SupCon over word groups | [todo: Jainam, P2] |
 | `mtp/eval/draft_policy.py` | `DraftPolicy`, `FixedK`, `ConfidenceCut`, `POLICIES` registry | [todo: Om] |
 | `mtp/eval/group_aware.py` | `GroupAware` policy | [todo: Jainam] |
-| `mtp/eval/perplexity.py`, `head_accuracy.py` | evaluation | [todo: Om] |
+| `mtp/eval/head_accuracy.py` | `evaluate_heads` (per-head loss/ppl/top-k, in-group split, token dump; ppl lives here, no separate `perplexity.py`) | [exists] |
 | `mtp/eval/spec_decode.py` | self-speculative decoding engine | [todo: Om] |
 | `scripts/evaluate.py`, `notebooks/kaggle_eval.ipynb` | evaluation entry point | [todo: Om] |
 | `mtp/data/grouping/{random_grouper,trankit_grouper,marathi_rules}.py` | groupers | [todo: Jai] |
@@ -225,7 +225,13 @@ Only the last 2 step folders are kept, plus `keep_steps`. A published run = this
                    "outputs_match_greedy": true, "group_integrity": 0.71, "n_prompts": 200}]
 }
 ```
-In-group / at-boundary are defined exactly as `scripts/train.py`'s `evaluate` (target t+d+1 in source t's group). For the same model, data and step, OM-4's numbers must match train.py's logged eval to 1e-3.
+In-group / at-boundary are defined exactly as `scripts/train.py`'s `evaluate` (target t+d+1 in source t's group). For the same model, data and step, OM-4's numbers must match train.py's logged eval to 1e-3. A split with no positions (`n_in_group` or `n_at_boundary` = 0, e.g. head 3 on short groups) has `null` top1/loss; train.py logs 0.0 there.
+
+```python
+# mtp/eval/head_accuracy.py  [exists]
+def evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_path=None, texts=None, tokenizer=None) -> list[dict]
+# one dict per head (the per_head fields above, top{k} for each k); dump_path needs tokenizer (token strings)
+```
 
 Per-token dump (`--dump_tokens`), `results/{run_name}/tokens_{dataset}.jsonl`, one line per (sentence, position, head):
 ```json
