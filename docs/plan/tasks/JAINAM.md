@@ -13,11 +13,11 @@ What exists: `MTPModel` (k heads, `linear` or zero-init `resblock` sharing the f
 Findings: NTP flat at 3.05 on eval_small. Groups span ~1.5 tokens: token t+d is in t's group 33/8/2.5/0.8% of the time for d=1..4. On the laptop MTP model, in-group targets are ~2x easier (head 1: 28% vs 14% top-1). Zero-init resblock heads with full gradient into the backbone make head 0 0.20 nats worse at 2k steps; `head_backbone_grad` 0.1 keeps it within 0.01 of NTP (`docs/runs.md`).
 
 ## Done
-JN-1 heads · JN-2 design note · JN-3 train.py + configs · JN-5 structural-loss code · JN-7 weighting code · OM-1/2/3 infra + Kaggle notebook (now Om's to own) · grouping contract code + `hi_rules_v0` · cleanup (`legacy/`).
+JN-1 heads · JN-4 baselines R0-R2 (Gate B passed, `mtp-run-R0/R1/R2`) · JN-2 design note · JN-3 train.py + configs · JN-5 structural-loss code · JN-7 weighting code · OM-1/2/3 infra + Kaggle notebook (now Om's to own) · grouping contract code + `hi_rules_v0` · cleanup (`legacy/`).
 
 ## Tasks
 
-### JN-4 · Finish the baselines · P0 · S
+### JN-4 · Finish the baselines · P0 · S · done 2026-10-09
 - Read the overnight Kaggle output (cell 4 / `train_*.log`). Fill `docs/runs.md` (commit, final eval per head).
 - **Gate B:** R0 and R1 within ~0.05 of the laptop numbers on eval_small (3.05 / 3.09 / 5.84). Known differences to keep in mind if it misses: Kaggle trains on non-blank rows from raw row 1,000 (laptop: raw rows 100+, half of them blank), fp16 autocast vs bf16.
 - Publish each run folder as a Kaggle Dataset `mtp-run-R0` / `-R1` / `-R2` and post the names (handoff D1 → Om).

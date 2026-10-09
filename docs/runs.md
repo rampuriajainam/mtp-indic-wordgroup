@@ -25,11 +25,16 @@ Eval sets: `eval_small` = IndicCorp raw rows 0-99 (~50 sentences), `eval` = rows
 
 ## Kaggle (T4 x2, fp32 weights + fp16 autocast, ~0.34 s/step)
 
+Step 12500, eval_small (50 sentences, `data.eval_n: 100` raw rows). Cell: loss (top-1). In-group / at-boundary top-1 from `train.py`'s reference eval with `hi_rules_v0`.
+
 | ID | commit | config | Kaggle dataset | h0 | h1 | h2 | h3 | notes |
 |---|---|---|---|---|---|---|---|---|
-| R0 | 09e3176 | R0.yaml | | | | | | started 2026-10-09 night |
-| R1 | 09e3176 | R1.yaml | | | | | | started 2026-10-09 night |
-| R2 | 09e3176 | R2.yaml (α=0.1) | | | | | | started 2026-10-09 night |
+| R0 | fe87853 | R0.yaml | `jainamrampuria/mtp-run-R0` | 3.049 (39.8%) | | | | 2026-10-09; 0.29 s/step; h0 in-group / boundary 57.7 / 31.4% |
+| R1 | fe87853 | R1.yaml | `jainamrampuria/mtp-run-R1` | 3.068 (39.3%) | 5.570 (13.9%) | | | 2026-10-09; 0.36 s/step; in-group / boundary h0 56.0 / 31.5%, h1 25.2 / 13.0% |
+| R2 | fe87853 | R2.yaml (α=0.1) | `jainamrampuria/mtp-run-R2` | 3.052 (39.6%) | 5.533 (13.8%) | 6.402 (7.8%) | 6.801 (4.4%) | 2026-10-09; 0.38 s/step; in-group / boundary h0 56.5 / 31.7%, h1 24.5 / 13.0%, h2 19.3 / 7.5%, h3 13.3 / 4.4% |
 
-Gate B: Kaggle R0 / R1 within ~0.05 of the laptop numbers (3.05 / 3.09 / 5.84) on eval_small.
-Note: tonight's runs predate the in-group eval; R2's step-12500 checkpoint gets the in-group split from Om's evaluate.py (or `pilot_R2ref` for the 2k-step comparison).
+Datasets hold `config.yaml`, `metrics.jsonl`, `train.log`, `step_12000/`, `step_12500/` (private; shared with Om).
+
+**Gate B: passed.** R0 h0 3.049 vs laptop 3.05; R1 h0 3.068 vs 3.09 (both within 0.05). R1 h1 5.57 vs 5.84 is 0.27 *better*, which fits the known differences: the legacy script summed head losses, the laptop trained on raw rows 100+ with half of them blank, and bf16 vs fp16 autocast. Head 0 of the MTP runs stays within 0.02 of R0, so `head_backbone_grad: 0.1` holds the verifier at NTP quality over the full 12.5k steps.
+
+On eval_small the h0 loss is flat from step 250 (3.052) to 12500 (3.049), so the gains are in heads 1-3. The full 500-sentence eval set and FLORES come from Om's `evaluate.py` (OM-4/OM-7).
