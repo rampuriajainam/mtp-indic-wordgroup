@@ -147,3 +147,36 @@ Round 1 leaves two doubts for R3 = S23 with the chain teacher. First, its guard 
 | `pilot_S3mix_l025` | S3_mix: in-group λ 0.25 + all-pairs λ 0.25, chain (guard-safer) |
 
 Same rule as §3. A mix wins only if it keeps the in-group gain of S3chain **and** raises mean top-1 above R2ref on both IC and FLORES, inside the guard.
+
+Results (step 2000, re-evaluated; differences vs pilot_R2ref):
+
+| run | guard (≤ +0.020) | h1 in-group IC / FLORES | mean top-1 h1-3 IC / FLORES |
+|---|---|---|---|
+| pilot_S23chain | +0.018 ✓ | +1.8 / +1.3 | −0.11 / +0.09 |
+| pilot_S3chain_l025 | +0.008 ✓ | +1.4 / +1.0 | +0.07 / +0.19 |
+| pilot_S3mix | +0.023 ✗ | +1.9 / +1.1 | +0.15 / +0.20 |
+| **pilot_S3mix_l025** | +0.013 ✓ | +1.3 / +0.9 | +0.28 / **+0.31** |
+
+S3mix_l025 is the only run that improves both metrics on both sets, so the two gains do add up. **R3 = S23_mix, λ_S3 0.25, λ_S3_all 0.25, chain teacher** (S2 is free: S23chain = S3chain on every number).
+
+### Does it matter for speed? Acceptance and a paired bootstrap (2026-10-10)
+
+Self-speculative decoding (FixedK, k = 4) on 100 prompts from IndicCorp eval sentences (FLORES is kept for the final numbers), plus a paired bootstrap (2,000 resamples over the same 500 sentences / 100 prompts). Differences vs pilot_R2ref, with 95% CIs; ✓ = the CI excludes 0.
+
+| run | h1 in-group top-1 | mean top-1 h1-3 | mean accepted length | h1 acceptance |
+|---|---|---|---|---|
+| pilot_R2ref (absolute) | 19.8% | 7.98% | **1.324** | 26.0% |
+| pilot_S3all | +0.2 [−0.5, +0.9] | +0.38 ✓ | +0.023 ✓ | +2.7 ✓ |
+| pilot_S3chain_l025 | +1.4 ✓ | +0.07 | −0.023 | −0.6 |
+| pilot_S3mix_l025 | +1.3 ✓ | +0.29 ✓ | −0.014 | +0.4 |
+| pilot_S23chain | +1.8 ✓ | −0.10 | −0.019 | +0.1 |
+
+1. The in-group gain of the masked variants is real (it holds on the same sentences; seed-to-seed variance is still unmeasured).
+2. It does not turn into acceptance. Only S3all improves acceptance, and only slightly.
+3. **Every variant drafts about 1.32 tokens per step.** No structural-loss choice changes that by more than ±0.02, so speculative decoding stays slower than greedy (R2: 0.72-0.87× in fp32). The structural loss is a second-order choice; the bottleneck is how good the drafters are.
+
+**Next levers (run with R3, 2,000-step pilots, judged on acceptance):**
+- **Self-distillation (`pilot_sd`):** train on the base model's own greedy continuations of training prompts (`scripts/gen_selfdistill.py`, `data.train_file`). On that text head d's CE target is head 0's greedy token, which is exactly what acceptance measures (Medusa-2). S3all, the only variant that moved acceptance, is a weak form of this.
+- **Head capacity (`pilot_R2ref_L2`):** 2 ResBlocks per head.
+- **Both (`pilot_sd_L2`).**
+- Not yet: heads conditioned on the previous draft (Hydra-style) and tree / top-k verification. Both need engine changes (OM-6). Top-5 accuracy of h1 is about 2× its top-1, so tree drafting is the largest untried lever.

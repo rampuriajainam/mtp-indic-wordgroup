@@ -154,6 +154,24 @@ def test_grad_accum_and_data_wraparound(tmp_path):
     assert (tmp_path / "run" / "step_8" / "optim.pt").exists()
 
 
+def test_train_file_replaces_corpus(tmp_path, monkeypatch):
+    """data.train_file (self-distillation text) is read instead of IndicCorp train; eval still uses the corpus."""
+    f = tmp_path / "sd.jsonl"
+    f.write_text("\n".join(json.dumps({"text": f"generated {i}"}) for i in range(100)) + "\n", encoding="utf-8")
+    cfg = make_cfg(tmp_path)
+    cfg.data.train_file, cfg.data.grouper = str(f), None
+    calls = []
+    monkeypatch.setattr(train_mod, "load_split", lambda lang, split, n=None: calls.append(split) or ["eval text"])
+
+    class Tok:
+        def __call__(self, texts, truncation, max_length):
+            return {"input_ids": [[1, len(t)] for t in texts], "attention_mask": [[1, 1] for _ in texts]}
+
+    train, ev = train_mod.build_data(cfg, Tok())
+    assert calls == ["eval_small"] and len(train) == min(100, train_mod.num_train_examples(cfg))
+    assert train[0]["input_ids"] == [1, len("generated 0")] and len(ev) == 1
+
+
 def test_group_losses_need_cache(tmp_path):
     cfg = make_cfg(tmp_path)
     cfg.losses.structural.enabled = True

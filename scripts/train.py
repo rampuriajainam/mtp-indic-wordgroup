@@ -135,7 +135,13 @@ def build_data(cfg, tokenizer):
         enc = tokenizer(texts, truncation=True, max_length=max_len)
         return [{"input_ids": i, "attention_mask": m} for i, m in zip(enc["input_ids"], enc["attention_mask"])]
 
-    train_texts = load_split(lang, "train", num_train_examples(cfg))
+    train_file = cfg_get(cfg, "data.train_file")
+    if train_file:  # e.g. self-distillation text from scripts/gen_selfdistill.py (one {"text"} per line)
+        with open(train_file, encoding="utf-8") as f:
+            train_texts = [json.loads(line)["text"] for line in f if line.strip()][:num_train_examples(cfg)]
+        print(f"data: train text from {train_file}")
+    else:
+        train_texts = load_split(lang, "train", num_train_examples(cfg))
     eval_texts = load_split(lang, cfg_get(cfg, "data.eval_split", "eval_small"))[:eval_n]
     labelled = f"labelled with {grouper_name}" if grouper else f"no grouper ({grouper_name!r} not registered)"
     print(f"data: raw IndicCorp text, {len(train_texts)} train / {len(eval_texts)} eval sentences, {labelled}")
