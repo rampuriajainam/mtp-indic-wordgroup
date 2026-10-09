@@ -1,0 +1,24 @@
+{
+  "run_name": "R0_hi_ntp",
+  "dataset": "flores_hi",
+  "step": 12500,
+  "grouper": "hi_rules_v0",
+  "git_commit": "fe878530ff57082f427d24400424ca93ae1748ee",
+  "per_head": [
+    {
+      "head": 0,
+      "loss": 3.9561317445156976,
+      "ppl": 52.25479957472401,
+      "top1": 0.3019392483267548,
+      "top5": 0.5416852582804187,
+      "n": 29135,
+      "top1_in_group": 0.44108843537414966,
+      "loss_in_group": 2.303647599685219,
+      "n_in_group": 11025,
+      "top1_at_boundary": 0.21722805080066263,
+      "loss_at_boundary": 4.9621305232940625,
+      "n_at_boundary": 18110
+    }
+  ],
+  "spec_decode": null
+}
