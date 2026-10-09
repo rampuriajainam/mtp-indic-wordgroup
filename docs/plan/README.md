@@ -15,12 +15,12 @@ This replaces the first plan (`docs/archive/MTP_Indic_Team_Plan_v1.pdf`). The id
 
 | piece | status |
 |---|---|
-| Package `mtp/` | config, device/dtype policy, corpus splits, collator, metrics log, checkpoints (`save_run` / `load_run`), model build. Tests: 90 passing, CPU-only |
+| Package `mtp/` | config, device/dtype policy, corpus splits, collator, metrics log, checkpoints (`save_run` / `load_run`), model build. Tests: 108 passing, CPU-only |
 | Model | `MTPModel`: k heads, `linear` or zero-init `resblock` sharing the frozen LM head, optional boundary probes, `head_backbone_grad` |
 | Losses | per-head CE; structural S2 / S3 (+ S3-chain, S3-all, S23); weighting `fixed` / `uncertainty` / `dwa` |
 | Training | `scripts/train.py` (YAML configs, bit-exact resume, Kaggle time limits, in-group / boundary eval); `notebooks/kaggle_train.ipynb` |
 | Word groups | contract code: grouper registry, `hi_rules_v0` (legacy rules), `label_tokens` (= legacy alignment, verified on 500 sentences). Training labels data on the fly, so **no cache is needed to train** |
-| Runs | R0, R1, R2 training on Kaggle (T4 x2, ~0.34 s/step ≈ 75 min per 12.5k-step run) |
+| Runs | R0, R1, R2 done on Kaggle (T4 x2, 0.29-0.38 s/step), Gate B passed, published as `mtp-run-R0/R1/R2` (`docs/runs.md`) |
 | Not started | grouper v1, random / Trankit groupers, gold set, evaluation suite, speculative decoding, Marathi, contrastive loss, group-aware decoding |
 
 **Findings so far** (details in `docs/runs.md`, `docs/design_structural_loss.md`):
