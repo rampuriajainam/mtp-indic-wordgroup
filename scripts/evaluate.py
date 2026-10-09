@@ -13,8 +13,10 @@ Datasets (INTERFACES §4): indiccorp_eval, indiccorp_eval_small (in the run's la
 flores_hi, flores_mr. FLORES is gated: accept the terms on huggingface.co/datasets/facebook/flores
 and log in (HF_TOKEN).
 
+--spec_decode adds the §10 spec_decode section (mtp.eval.spec_decode): prompts are the first 8-16
+words of the first --spec_n sentences of each dataset, batch size 1, outputs checked against greedy.
 Re-running with the same run, step and grouper updates only the sections it computes, so per-head
-numbers and --spec_decode numbers (OM-6) can be produced in separate sessions.
+and spec-decode numbers can come from separate sessions (--no_heads skips the per-head part).
 """
 
 import argparse
@@ -96,18 +98,42 @@ def print_table(name, per_head):
               f" {pct(r['top1_in_group'])} {pct(r['top1_at_boundary'])}")
 
 
+def print_spec(name, entries):
+    print(f"\n{name}: speculative decoding")
+    for e in entries:
+        acc = " / ".join(f"{100 * a:.0f}%" if a is not None else "-" for a in e["accept_rate_per_head"])
+        gi = f"{100 * e['group_integrity']:.0f}%" if e["group_integrity"] is not None else "-"
+        print(f"  {e['policy']:<15} accepted len {e['mean_accepted_len']:.2f} | accept/head {acc} | "
+              f"{e['tokens_per_sec']:.1f} vs greedy {e['greedy_tokens_per_sec']:.1f} tok/s = x{e['speedup']:.2f} | "
+              f"match greedy {e['outputs_match_greedy']} | group integrity {gi} | {e['n_prompts']} prompts")
+
+
+def make_policies(names, tau):
+    from mtp.eval.draft_policy import POLICIES, get_policy
+
+    missing = [p for p in names if p not in POLICIES]
+    if missing:
+        raise SystemExit(f"draft polic(ies) {missing} not available; have {sorted(POLICIES)}")
+    return [get_policy(p, tau=tau) if p == "confidence_cut" else get_policy(p) for p in names]
+
+
 def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT / "results", dump_tokens=False,
-                 spec_decode=False, device="auto", batch_size=None, n=None, texts_fn=load_texts):
-    """Evaluate one run on each dataset; returns {dataset: path of eval_{dataset}.json}."""
+                 spec_decode=False, policies=("fixed_k", "confidence_cut"), tau=0.5, spec_n=200, max_new_tokens=64,
+                 heads=True, device="auto", batch_size=None, n=None, texts_fn=load_texts):
+    """Evaluate one run on each dataset; returns {dataset: path of eval_{dataset}.json}.
+    heads=False skips the per-head section (e.g. a session that only adds spec_decode)."""
     from mtp.data.collate import Collator
+    from mtp.device import autocast_ctx
     from mtp.eval.head_accuracy import evaluate_heads
+    from mtp.eval.spec_decode import evaluate_spec_decode, make_prompts
     from mtp.model.checkpoint import load_run
 
-    if spec_decode:
-        raise SystemExit("--spec_decode needs mtp/eval/spec_decode.py (OM-6), which is not on main yet")
     unknown = [d for d in datasets if d not in DATASETS]
     if unknown:
         raise SystemExit(f"unknown dataset(s) {unknown}; choose from {sorted(DATASETS)}")
+    if not heads and not spec_decode:
+        raise SystemExit("nothing to do: --no_heads without --spec_decode")
+    draft_policies = make_policies(policies, tau) if spec_decode else []
 
     model, tokenizer, cfg = load_run(run_dir, device=device, step=step)
     device = next(model.parameters()).device
@@ -117,26 +143,38 @@ def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT /
     grouper_name = grouper_name or cfg_get(cfg, "data.grouper")
     collator = Collator(tokenizer.pad_token_id)
     print(f"run {cfg.run_name} | step {model.loaded_step} | heads {model.num_heads} | device {device}")
+    if spec_decode and model.num_heads < 2:
+        warnings.warn(f"{cfg.run_name} has one head (no drafts): skipping speculative decoding")
+        draft_policies = []
 
     written = {}
     for name in datasets:
         t0 = time.perf_counter()
         texts = texts_fn(name, cfg, n)
         grouper, used_grouper = resolve_grouper(grouper_name, dataset_lang(name, cfg))
-        examples = make_examples(texts, tokenizer, grouper, max_length)
         out = Path(out_dir) / cfg.run_name
-        dump = out / f"tokens_{name}.jsonl" if dump_tokens else None
-        per_head = evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_path=dump,
-                                  texts=texts, tokenizer=tokenizer)
+        per_head = spec = None
+        if heads:
+            examples = make_examples(texts, tokenizer, grouper, max_length)
+            dump = out / f"tokens_{name}.jsonl" if dump_tokens else None
+            per_head = evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_path=dump,
+                                      texts=texts, tokenizer=tokenizer)
+        if draft_policies:
+            prompts = make_prompts(texts, tokenizer, n=spec_n)
+            spec = evaluate_spec_decode(model, tokenizer, prompts, draft_policies, max_new_tokens=max_new_tokens,
+                                        grouper=grouper, amp=lambda: autocast_ctx(cfg))
         record = {
             "run_name": cfg.run_name, "dataset": name, "step": model.loaded_step, "grouper": used_grouper,
-            "git_commit": cfg_get(cfg, "git_commit"), "per_head": per_head, "spec_decode": None,
+            "git_commit": cfg_get(cfg, "git_commit"), "per_head": per_head, "spec_decode": spec,
         }
         path = out / f"eval_{name}.json"
         write_result(path, record)
         written[name] = path
-        print_table(f"{name}: {len(texts)} sentences, grouper {used_grouper}, {time.perf_counter() - t0:.0f}s"
-                    f" -> {path}", per_head)
+        took = f"{time.perf_counter() - t0:.0f}s"
+        if per_head is not None:
+            print_table(f"{name}: {len(texts)} sentences, grouper {used_grouper}, {took} -> {path}", per_head)
+        if spec is not None:
+            print_spec(f"{name} ({took} -> {path})", spec)
     return written
 
 
@@ -148,16 +186,21 @@ def main(argv=None):
     ap.add_argument("--grouper", default=None, help="default: data.grouper from the run's config")
     ap.add_argument("--out", default=str(ROOT / "results"))
     ap.add_argument("--dump_tokens", action="store_true", help="also write results/{run}/tokens_{dataset}.jsonl")
-    ap.add_argument("--spec_decode", action="store_true", help="speculative decoding (OM-6, not available yet)")
+    ap.add_argument("--no_heads", action="store_true", help="skip the per-head section (keeps an existing one)")
+    ap.add_argument("--spec_decode", action="store_true", help="self-speculative decoding (OM-6)")
     ap.add_argument("--policies", nargs="+", default=["fixed_k", "confidence_cut"])
+    ap.add_argument("--tau", type=float, default=0.5, help="confidence_cut threshold")
+    ap.add_argument("--spec_n", type=int, default=200, help="prompts per dataset (first 8-16 words of a sentence)")
+    ap.add_argument("--max_new_tokens", type=int, default=64)
     ap.add_argument("--device", default="auto")
     ap.add_argument("--batch_size", type=int, default=None, help="default: optim.batch_size of the run")
     ap.add_argument("--n", type=int, default=None, help="cap sentences per dataset (smoke tests)")
     args = ap.parse_args(argv)
 
     evaluate_run(args.run_dir, args.datasets, step=args.step, grouper_name=args.grouper, out_dir=args.out,
-                 dump_tokens=args.dump_tokens, spec_decode=args.spec_decode, device=args.device,
-                 batch_size=args.batch_size, n=args.n)
+                 dump_tokens=args.dump_tokens, spec_decode=args.spec_decode, policies=args.policies, tau=args.tau,
+                 spec_n=args.spec_n, max_new_tokens=args.max_new_tokens, heads=not args.no_heads,
+                 device=args.device, batch_size=args.batch_size, n=args.n)
 
 
 if __name__ == "__main__":
