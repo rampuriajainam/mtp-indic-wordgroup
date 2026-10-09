@@ -116,8 +116,64 @@ def test_unknown_grouper_evaluates_without_split(evaluate, tiny_run, tmp_path):
     assert rec["per_head"][0]["top1_in_group"] is None and rec["per_head"][0]["n_in_group"] == 0
 
 
+SPEC_KEYS = {"policy", "mean_accepted_len", "accept_rate_per_head", "tokens_per_sec", "greedy_tokens_per_sec",
+             "speedup", "outputs_match_greedy", "group_integrity", "n_prompts"}
+LONG = ["मैं कल बाजार जा रहा था। वह घर से आया था भारत एक विशाल और विविधतापूर्ण देश है।",
+        "बच्चे पार्क में खेल रहे हैं। के बारे बात कर वह घर से आया था मैं कल बाजार जा रहा था।"]
+
+
+def long_texts(name, cfg, n=None):
+    return LONG + TEXTS
+
+
+def test_spec_decode_section(evaluate, tiny_run, tmp_path):
+    out = tmp_path / "results"
+    evaluate.evaluate_run(tiny_run, ["indiccorp_eval"], out_dir=out, device="cpu", spec_decode=True,
+                          policies=["fixed_k", "confidence_cut"], tau=0.2, max_new_tokens=8, texts_fn=long_texts)
+    rec = json.loads((out / "tiny_R2" / "eval_indiccorp_eval.json").read_text(encoding="utf-8"))
+    assert rec["per_head"] is not None and [e["policy"] for e in rec["spec_decode"]] == ["fixed_k", "confidence_cut"]
+    for e in rec["spec_decode"]:
+        assert set(e) == SPEC_KEYS
+        assert e["outputs_match_greedy"] is True and e["n_prompts"] == 2   # only LONG has > 16 words
+        assert len(e["accept_rate_per_head"]) == 2 and e["mean_accepted_len"] >= 1.0
+
+    # spec-only session: per_head is kept from the first run, spec_decode replaced
+    before = rec["per_head"]
+    evaluate.evaluate_run(tiny_run, ["indiccorp_eval"], out_dir=out, device="cpu", heads=False,
+                          spec_decode=True, policies=["fixed_k"], max_new_tokens=4, texts_fn=long_texts)
+    again = json.loads((out / "tiny_R2" / "eval_indiccorp_eval.json").read_text(encoding="utf-8"))
+    assert again["per_head"] == before and [e["policy"] for e in again["spec_decode"]] == ["fixed_k"]
+
+
+def test_spec_decode_skips_single_head_run(evaluate, tmp_path, tiny_model_dir, tiny_tok):
+    from mtp.data.grouping.align import label_batch
+    from mtp.data.grouping.base import get_grouper
+    from mtp.model.build import build_model
+
+    train = _load("train_script_eval_r0", ROOT / "scripts" / "train.py")
+    d = yaml.safe_load((ROOT / "configs" / "R0.yaml").read_text(encoding="utf-8"))
+    d.update(run_name="tiny_R0", model_name=str(tiny_model_dir), dtype="fp32", log_every=1, eval_every=1, save_every=1)
+    d["optim"].update(max_steps=1, batch_size=2)
+    d["data"].update(cache_dir=None, grouper="hi_rules_v0")
+    (tmp_path / "c.yaml").write_text(yaml.safe_dump(d), encoding="utf-8")
+    cfg = load_config(tmp_path / "c.yaml")
+    examples = label_batch(TEXTS, tiny_tok, get_grouper("hi_rules_v0"))
+    train.seed_everything(0)
+    model, tok = build_model(cfg, "cpu")
+    run_dir = tmp_path / "runs" / "tiny_R0"
+    train.train(cfg, model, tok, examples, examples, run_dir)
+
+    with pytest.warns(UserWarning, match="one head"):
+        evaluate.evaluate_run(run_dir, ["indiccorp_eval"], out_dir=tmp_path / "res", device="cpu",
+                              spec_decode=True, texts_fn=long_texts)
+    rec = json.loads((tmp_path / "res" / "tiny_R0" / "eval_indiccorp_eval.json").read_text(encoding="utf-8"))
+    assert rec["spec_decode"] is None and len(rec["per_head"]) == 1
+
+
 def test_cli_errors(evaluate, tiny_run):
     with pytest.raises(SystemExit):
         evaluate.main(["--run_dir", str(tiny_run), "--datasets", "nope"])
-    with pytest.raises(SystemExit, match="OM-6"):
-        evaluate.main(["--run_dir", str(tiny_run), "--spec_decode"])
+    with pytest.raises(SystemExit, match="not available"):
+        evaluate.main(["--run_dir", str(tiny_run), "--spec_decode", "--policies", "no_such_policy"])
+    with pytest.raises(SystemExit, match="nothing to do"):
+        evaluate.main(["--run_dir", str(tiny_run), "--no_heads"])
