@@ -24,7 +24,7 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `mtp/model/build.py` | `build_model(cfg, device)`, `load_tokenizer` | [exists] |
 | `mtp/model/checkpoint.py` | `save_run`, `latest_step`, `load_weights`, `load_run` | [exists] |
 | `mtp/losses/mtp_ce.py` | `per_head_ce`, `shift_targets` | [exists] |
-| `mtp/losses/structural.py` | `StructuralLoss` (S2, S3_h0, S3_chain, S3_all, S23) | [exists] |
+| `mtp/losses/structural.py` | `StructuralLoss` (S2, S3_h0, S3_chain, S3_all, S23, S3_mix, S23_mix) | [exists] |
 | `mtp/losses/weighting.py` | `LossWeighting` (fixed, uncertainty, dwa) | [exists] |
 | `scripts/train.py` | training entry point | [exists] |
 | `notebooks/kaggle_train.ipynb` | Kaggle training | [exists] |
@@ -157,7 +157,7 @@ lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}
 optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500, grad_accum: 1, weight_decay: 0.01}
 data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: hi_rules_v0, max_length: 128, eval_split: eval_small, eval_n: 100}
 losses:
-  structural: {enabled: false, variant: null, weight: 1.0, lambda_s2: 0.1, lambda_s3: 0.5, s3_teacher: h0}
+  structural: {enabled: false, variant: null, weight: 1.0, lambda_s2: 0.1, lambda_s3: 0.5, lambda_s3_all: 0.25, s3_teacher: null}
   contrastive: {enabled: false, weight: 0.05, temperature: 0.1}
 weighting: {scheme: fixed, head_decay: 0.8}   # fixed | uncertainty | dwa; + fix_head0, dwa_window, dwa_temperature, lr
 log_every: 20
@@ -168,7 +168,7 @@ seed: 42
 dtype: auto                       # auto | bf16 | fp16 | fp32
 # git_commit: written by train.py into the run's config.yaml
 ```
-Structural variants: `S2`, `S3_h0`, `S3_chain`, `S3_all`, `S23` (see `docs/design_structural_loss.md`). `TBD` in a config = not decided yet; train.py fails loudly on it.
+Structural variants: `S2`, `S3_h0`, `S3_chain`, `S3_all`, `S23`, `S3_mix`, `S23_mix` (see `docs/design_structural_loss.md`). `s3_teacher` (`h0` | `chain`) overrides the default teacher of `S23` (h0), `S3_mix` and `S23_mix` (chain); `lambda_s3_all` weights the `struct/consistency_all/h{d}` terms of the `_mix` variants. `TBD` in a config = not decided yet; train.py fails loudly on it.
 
 ## 7. Gold annotation format (Jai)
 

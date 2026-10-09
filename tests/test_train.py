@@ -179,7 +179,17 @@ def with_groups(examples, seed=0):
     return examples
 
 
-@pytest.mark.parametrize("variant", ["S2", "S3_h0", "S3_chain", "S3_all", "S23"])
+def test_mix_terms_get_their_own_lambda(tmp_path):
+    from mtp.losses.weighting import LossWeighting
+
+    cfg = make_cfg(tmp_path)
+    cfg.losses.structural.lambda_s3, cfg.losses.structural.lambda_s3_all = 0.5, 0.25
+    w = LossWeighting("fixed", ["struct/consistency/h1", "struct/consistency_all/h1"], aux_weights=train_mod.aux_weights(cfg))
+    assert w._fixed_weight("struct/consistency/h1") == 0.5
+    assert w._fixed_weight("struct/consistency_all/h1") == 0.25
+
+
+@pytest.mark.parametrize("variant", ["S2", "S3_h0", "S3_chain", "S3_all", "S23", "S3_mix", "S23_mix"])
 def test_train_with_structural_loss_and_resume(tmp_path, variant):
     cfg = make_cfg(tmp_path)
     cfg.losses.structural.enabled = True

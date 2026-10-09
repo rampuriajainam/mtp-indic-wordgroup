@@ -91,6 +91,26 @@ def test_s3_all_ignores_groups():
     assert terms["struct/consistency/h2"].item() == pytest.approx(exp2, rel=1e-5)
 
 
+def test_s3_mix_is_in_group_plus_all_pairs_with_chain_teacher():
+    out = out_with()
+    mix = StructuralLoss("S3_mix", K)(out, BATCH)
+    assert set(mix) == {"struct/consistency/h1", "struct/consistency/h2",
+                        "struct/consistency_all/h1", "struct/consistency_all/h2"}
+    chain = StructuralLoss("S3_chain", K)(out, BATCH)
+    for d in (1, 2):  # the in-group term is exactly S3_chain
+        assert mix[f"struct/consistency/h{d}"].item() == pytest.approx(chain[f"struct/consistency/h{d}"].item())
+    L = out.logits
+    # all pairs, head 2: valid t=0,1,2 (u=t+3 real); chain teacher = head 1 at t+1
+    exp2 = sum(kl(L[1][0, t + 1], L[2][0, t]) for t in range(3)) / 3
+    assert mix["struct/consistency_all/h2"].item() == pytest.approx(exp2, rel=1e-5)
+    assert mix["struct/consistency/h2"].item() == 0.0  # no in-group pair for head 2 (see S3_h0 test)
+    # teacher override and the S2 + S3_mix variant
+    h0 = StructuralLoss("S3_mix", K, s3_teacher="h0")(out, BATCH)
+    assert h0["struct/consistency_all/h2"].item() == pytest.approx(
+        StructuralLoss("S3_all", K)(out, BATCH)["struct/consistency/h2"].item())
+    assert len(StructuralLoss("S23_mix", 4).term_names) == 4 + 3 + 3
+
+
 def test_s3_teacher_gets_no_gradient():
     out = out_with()
     terms = StructuralLoss("S3_all", K)(out, BATCH)
