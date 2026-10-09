@@ -81,10 +81,10 @@ def test_forced_logits_known_answer(tmp_path):
 
     lines = [json.loads(l) for l in dump.read_text(encoding="utf-8").splitlines()]
     assert len(lines) == 5 + 3
-    assert set(lines[0]) == {"sent_id", "token_idx", "token", "head", "target_idx", "correct", "rank",
+    assert set(lines[0]) == {"sent_id", "text", "token_idx", "token", "head", "target_idx", "correct", "rank",
                              "group_start", "group_id", "target_group_id"}
     by_key = {(r["head"], r["sent_id"], r["token_idx"]): r for r in lines}
-    assert by_key[(0, 0, 1)] == {"sent_id": 0, "token_idx": 1, "token": "tok2", "head": 0, "target_idx": 2,
+    assert by_key[(0, 0, 1)] == {"sent_id": 0, "text": None, "token_idx": 1, "token": "tok2", "head": 0, "target_idx": 2,
                                  "correct": False, "rank": 5, "group_start": 0, "group_id": 0, "target_group_id": 1}
     assert by_key[(0, 1, 1)]["rank"] == 3 and by_key[(1, 1, 0)]["target_idx"] == 2
     assert sum(r["correct"] for r in lines if r["head"] == 0) == 3
@@ -156,3 +156,4 @@ def test_agrees_with_train_evaluate(tmp_path, tiny_model_dir, tiny_tok, variant)
     assert len(lines) == sum(r["n"] for r in ours)
     first = json.loads(lines[0])
     assert first["token"] == tok2.convert_ids_to_tokens(examples[0]["input_ids"][0])
+    assert all(json.loads(l)["text"] == texts[json.loads(l)["sent_id"]] for l in lines)
