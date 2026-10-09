@@ -205,14 +205,22 @@ def make_prompts(texts, tokenizer, n=200, min_words=8, max_words=16, seed=0):
 
 
 def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64, grouper=None,
-                         use_cache=True, amp=None, warmup=1):
-    """One INTERFACES §10 spec_decode entry per policy, over the same prompts. Greedy runs once."""
+                         use_cache=True, amp=None, warmup=1, log_every=0):
+    """One INTERFACES §10 spec_decode entry per policy, over the same prompts. Greedy runs once.
+    log_every > 0 prints progress every that many prompts (long Kaggle runs)."""
+    t_start = time.perf_counter()
+
+    def progress(what, i):
+        if log_every and (i % log_every == 0 or i == len(prompts)):
+            print(f"  [{time.perf_counter() - t_start:7.0f}s] {what}: {i}/{len(prompts)} prompts", flush=True)
+
     model.eval()
     for p in prompts[:warmup]:                      # CUDA kernels / allocator warm-up, not timed
         greedy_generate(model, tokenizer, p, 8, use_cache=use_cache, amp=amp)
     greedy_ids, greedy_tokens, greedy_secs = [], 0, 0.0
-    for p in prompts:
+    for i, p in enumerate(prompts, 1):
         ids, st = greedy_generate(model, tokenizer, p, max_new_tokens, use_cache=use_cache, amp=amp)
+        progress("greedy", i)
         greedy_ids.append(ids)
         greedy_tokens += st["tokens"]
         greedy_secs += st["seconds"]
@@ -225,8 +233,9 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
         secs = 0.0
         prop, acc = [0] * (k - 1), [0] * (k - 1)
         match = True
-        for p, ref in zip(prompts, greedy_ids):
+        for i, (p, ref) in enumerate(zip(prompts, greedy_ids), 1):
             ids, st = generate(model, tokenizer, p, max_new_tokens, policy, grouper, use_cache=use_cache, amp=amp)
+            progress(policy.name, i)
             match &= ids == ref
             tokens += st["tokens"]
             steps += st["steps"]

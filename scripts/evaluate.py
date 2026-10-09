@@ -162,7 +162,7 @@ def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT /
         if draft_policies:
             prompts = make_prompts(texts, tokenizer, n=spec_n)
             spec = evaluate_spec_decode(model, tokenizer, prompts, draft_policies, max_new_tokens=max_new_tokens,
-                                        grouper=grouper, amp=lambda: autocast_ctx(cfg))
+                                        grouper=grouper, amp=lambda: autocast_ctx(cfg), log_every=25)
         record = {
             "run_name": cfg.run_name, "dataset": name, "step": model.loaded_step, "grouper": used_grouper,
             "git_commit": cfg_get(cfg, "git_commit"), "per_head": per_head, "spec_decode": spec,
