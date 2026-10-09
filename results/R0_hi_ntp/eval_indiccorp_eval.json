@@ -1,0 +1,24 @@
+{
+  "run_name": "R0_hi_ntp",
+  "dataset": "indiccorp_eval",
+  "step": 12500,
+  "grouper": "hi_rules_v0",
+  "git_commit": "fe878530ff57082f427d24400424ca93ae1748ee",
+  "per_head": [
+    {
+      "head": 0,
+      "loss": 2.834740780798538,
+      "ppl": 17.025986265755726,
+      "top1": 0.42483906185295334,
+      "top5": 0.6775213643037308,
+      "n": 26563,
+      "top1_in_group": 0.5836865620345973,
+      "loss_in_group": 1.562135594805323,
+      "n_in_group": 8729,
+      "top1_at_boundary": 0.34708982841762925,
+      "loss_at_boundary": 3.4576280009282656,
+      "n_at_boundary": 17834
+    }
+  ],
+  "spec_decode": null
+}

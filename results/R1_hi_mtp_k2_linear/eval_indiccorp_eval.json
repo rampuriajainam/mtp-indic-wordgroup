@@ -1,0 +1,38 @@
+{
+  "run_name": "R1_hi_mtp_k2_linear",
+  "dataset": "indiccorp_eval",
+  "step": 12500,
+  "grouper": "hi_rules_v0",
+  "git_commit": "fe878530ff57082f427d24400424ca93ae1748ee",
+  "per_head": [
+    {
+      "head": 0,
+      "loss": 2.8656760555646894,
+      "ppl": 17.560921350971757,
+      "top1": 0.42047208523133683,
+      "top5": 0.6738696683356549,
+      "n": 26563,
+      "top1_in_group": 0.5817390308168175,
+      "loss_in_group": 1.5861894002497736,
+      "n_in_group": 8729,
+      "top1_at_boundary": 0.3415386340697544,
+      "loss_at_boundary": 3.491931462242449,
+      "n_at_boundary": 17834
+    },
+    {
+      "head": 1,
+      "loss": 5.4680788521480705,
+      "ppl": 237.00443455155397,
+      "top1": 0.15381959099106013,
+      "top5": 0.3360702912174347,
+      "n": 26063,
+      "top1_in_group": 0.28685047720042417,
+      "loss_in_group": 4.239902040232783,
+      "n_in_group": 1886,
+      "top1_at_boundary": 0.14344211440625387,
+      "loss_at_boundary": 5.563886481597228,
+      "n_at_boundary": 24177
+    }
+  ],
+  "spec_decode": null
+}

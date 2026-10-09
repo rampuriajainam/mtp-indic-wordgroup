@@ -1,0 +1,38 @@
+{
+  "run_name": "R1_hi_mtp_k2_linear",
+  "dataset": "flores_hi",
+  "step": 12500,
+  "grouper": "hi_rules_v0",
+  "git_commit": "fe878530ff57082f427d24400424ca93ae1748ee",
+  "per_head": [
+    {
+      "head": 0,
+      "loss": 3.9571977386553168,
+      "ppl": 52.31053258509121,
+      "top1": 0.3010468508666552,
+      "top5": 0.5400034322979235,
+      "n": 29135,
+      "top1_in_group": 0.43891156462585035,
+      "loss_in_group": 2.313740620515784,
+      "n_in_group": 11025,
+      "top1_at_boundary": 0.21711761457758144,
+      "loss_at_boundary": 4.957701022370885,
+      "n_at_boundary": 18110
+    },
+    {
+      "head": 1,
+      "loss": 6.376768956087572,
+      "ppl": 588.0247013339252,
+      "top1": 0.10390072182910785,
+      "top5": 0.2555203925612488,
+      "n": 28123,
+      "top1_in_group": 0.15019255455712452,
+      "loss_in_group": 5.312312163192592,
+      "n_in_group": 3116,
+      "top1_at_boundary": 0.0981325228935898,
+      "loss_at_boundary": 6.509405640346484,
+      "n_at_boundary": 25007
+    }
+  ],
+  "spec_decode": null
+}
