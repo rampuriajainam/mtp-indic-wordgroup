@@ -112,3 +112,18 @@ def test_short_and_empty_batches_give_zero_not_nan():
     no_groups = dict(BATCH, group_id=torch.full_like(GID, -1))
     terms = StructuralLoss("S23", K)(out_with(boundary=[torch.zeros(1, T)] * K), no_groups)
     assert all(v.item() == 0.0 for v in terms.values())
+
+
+@pytest.mark.parametrize("variant", ["S3_h0", "S3_chain", "S23"])
+def test_no_in_group_pair_under_fp16_is_zero_not_nan(variant):
+    """Kaggle pilots, step 134: a batch with no in-group pair for the last head. The zero term was
+    logits.sum() * 0, and the sum of fp16 logits overflows to inf -> NaN."""
+    every_token_its_own_group = dict(BATCH, group_id=torch.tensor([[0, 1, 2, 3, 4, 5, -1]]))
+    logits = [torch.full((1, T, V), 1e4, dtype=torch.float16, requires_grad=True) for _ in range(K)]
+    assert torch.isinf(logits[0].sum())  # the trap
+    boundary = [torch.zeros(1, T, dtype=torch.float16, requires_grad=True) for _ in range(K)]
+    terms = StructuralLoss(variant, K)(out_with(logits, boundary), every_token_its_own_group)
+    for name, v in terms.items():
+        assert torch.isfinite(v), name
+    sum(v for n, v in terms.items() if n.startswith("struct/consistency")).backward()
+    assert all(torch.isfinite(l.grad).all() for l in logits if l.grad is not None)

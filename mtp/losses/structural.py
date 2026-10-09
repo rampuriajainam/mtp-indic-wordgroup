@@ -37,8 +37,10 @@ def needs_boundary_probes(variant) -> bool:
 
 
 def _zero(like):
-    """0 that stays attached to the graph, so a batch with no valid position never gives NaN."""
-    return like.sum() * 0.0
+    """0 that stays attached to the graph, so a batch with no valid position never gives NaN.
+    Built from one element: like.sum() of fp16 logits overflows to inf, and inf * 0 = NaN
+    (crashed every in-group S3 pilot on T4 at the first batch with no in-group pair for head 3)."""
+    return like.reshape(-1)[:1].float().sum() * 0.0
 
 
 class StructuralLoss:
