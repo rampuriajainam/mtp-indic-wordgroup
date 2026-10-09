@@ -53,8 +53,9 @@ def load_texts(name, cfg, n=None):
 
 
 def resolve_grouper(name, lang):
-    """(grouper, name) or (None, None) if `name` is unset or not registered yet (e.g. mr_rules_v1
-    before JI-7): the run is then evaluated without the in-group / at-boundary split."""
+    """(grouper, name) or (None, None) if `name` is unset, not registered yet (e.g. mr_rules_v1
+    before JI-7) or does not support `lang` (hi_rules_v0 on flores_mr): the run is then evaluated
+    without the in-group / at-boundary split."""
     from mtp.data.grouping.base import get_grouper
 
     if not name:
@@ -63,7 +64,9 @@ def resolve_grouper(name, lang):
         return get_grouper(name, lang), name
     except KeyError:
         warnings.warn(f"grouper {name!r} is not registered yet; evaluating without the in-group split")
-        return None, None
+    except ValueError as e:  # language not supported by this grouper
+        warnings.warn(f"grouper {name!r} cannot group {lang!r} ({e}); evaluating without the in-group split")
+    return None, None
 
 
 def make_examples(texts, tokenizer, grouper, max_length):
