@@ -82,6 +82,7 @@ Two choices of teacher. **Both are piloted** (decision 1 in section 4):
 | `pilot_S3chain` | S3-chain, in-group mask |
 | `pilot_S23` | S2 + the better of S3-h0 / S3-chain |
 | `pilot_S3all` | S3-h0, no mask (control) |
+| `pilot_S3_l01` | `pilot_S3` with λ_S3 = 0.1 (the "Watch" fallback, run up front: in a 20-step smoke run, S3 put h1 0.10 behind the reference) |
 
 **Metric logging names:** `struct/boundary_bce/h{d}` and `struct/consistency/h{d}`.
 
