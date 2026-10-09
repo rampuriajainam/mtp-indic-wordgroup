@@ -116,6 +116,17 @@ def test_unknown_grouper_evaluates_without_split(evaluate, tiny_run, tmp_path):
     assert rec["per_head"][0]["top1_in_group"] is None and rec["per_head"][0]["n_in_group"] == 0
 
 
+def test_hindi_grouper_on_marathi_dataset_evaluates_without_split(evaluate, tiny_run, tmp_path):
+    """A Hindi run on flores_mr: hi_rules_v0 refuses lang "mr" (ValueError); that must not crash."""
+    with pytest.warns(UserWarning, match="cannot group 'mr'"):
+        evaluate.evaluate_run(tiny_run, ["flores_hi", "flores_mr"], grouper_name="hi_rules_v0",
+                              out_dir=tmp_path, device="cpu", texts_fn=fake_texts)
+    hi = json.loads((tmp_path / "tiny_R2" / "eval_flores_hi.json").read_text(encoding="utf-8"))
+    mr = json.loads((tmp_path / "tiny_R2" / "eval_flores_mr.json").read_text(encoding="utf-8"))
+    assert hi["grouper"] == "hi_rules_v0" and mr["grouper"] is None
+    assert mr["per_head"][0]["n_in_group"] == 0
+
+
 SPEC_KEYS = {"policy", "mean_accepted_len", "accept_rate_per_head", "tokens_per_sec", "greedy_tokens_per_sec",
              "speedup", "outputs_match_greedy", "group_integrity", "n_prompts"}
 LONG = ["मैं कल बाजार जा रहा था। वह घर से आया था भारत एक विशाल और विविधतापूर्ण देश है।",
