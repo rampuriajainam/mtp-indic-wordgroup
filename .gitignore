@@ -11,3 +11,5 @@ boundary_cache/
 wandb/
 CLAUDE.local.md
 results/**/tokens_*.jsonl
+CS769proj/
+MTP_Indic_Team_Plan.pdf
