@@ -52,8 +52,8 @@ def latest_step(run_dir):
     return max(_step_dirs(run_dir), default=None) if Path(run_dir).exists() else None
 
 
-def load_weights(model, step_dir):
-    """LoRA adapter + heads/probes from a step folder into an already built MTPModel."""
+def load_lora(model, step_dir):
+    """LoRA adapter only, from a step folder into an already built MTPModel."""
     from peft import set_peft_model_state_dict
     from safetensors.torch import load_file
 
@@ -62,6 +62,12 @@ def load_weights(model, step_dir):
     missing = [k for k in result.missing_keys if "lora_" in k]
     if missing:
         raise RuntimeError(f"LoRA weights missing from {step_dir}: {missing[:3]}")
+
+
+def load_weights(model, step_dir):
+    """LoRA adapter + heads/probes from a step folder into an already built MTPModel."""
+    step_dir = Path(step_dir)
+    load_lora(model, step_dir)
     model.load_head_state_dict(torch.load(step_dir / "heads.pt", weights_only=True, map_location="cpu"))
 
 
