@@ -360,3 +360,23 @@ Verify-pass cost (`bench_verify`, ms, × greedy pass of 35.3-35.4 ms):
 - **Tree outlook:** with Jainam's real/offline correction (0.86 k4, 0.82 k6), the n64 trees give ≈ 2.38 tokens/step ÷ 1.30 ≈ ×1.83 for k4 and ≈ 2.41 ÷ 1.44 ≈ ×1.67 for k6. So **k4 is the better tree base on T4**, unless `generate_tree()` shows the deep nodes are accepted more than the oracle predicts.
 - k6 h4/h5 in-group numbers rest on 58 / 26 targets: ignore them.
 
+## Second seed: R3_s43 vs R6a_s43 (OM-8, official eval, C1 control)
+
+`R3_hi_k4_struct_s43` / `R6a_hi_k4_struct_random_s43` (seed 43 + shuffled data), step 12500, Kaggle T4, `--grouper hi_rules_v0` for both (same in-group target counts as R2/R3: 1,886 / 557 / 171 on IndicCorp; 3,116 / 1,009 / 298 on FLORES).
+
+In-group top-1 (h1 / h2 / h3):
+
+| dataset | R2 | R3 (s42) | R6a (s42) | R3_s43 | R6a_s43 | R3 mean | R6a mean |
+|---|---|---|---|---|---|---|---|
+| indiccorp_eval | 23.4 / 19.0 / 17.5 | 25.8 / 24.1 / 22.2 | 25.2 / 21.5 / 19.9 | 23.6 / 21.2 / 19.9 | 25.2 / 21.4 / 18.1 | 24.7 / 22.7 / 21.1 | 25.2 / 21.5 / 19.0 |
+| flores_hi | 12.5 / 12.1 / 12.1 | 14.3 / 14.0 / 13.1 | 13.7 / 12.9 / 11.1 | 12.1 / 13.0 / 13.4 | 12.5 / 13.2 / 14.8 | 13.2 / 13.5 / 13.3 | 13.1 / 13.1 / 13.0 |
+
+| run | IndicCorp FixedK tokens/step, speed-up | FLORES FixedK | h0 loss IndicCorp / FLORES |
+|---|---|---|---|
+| R3_s43 | 1.38, ×1.13 | 1.34, ×1.10 | 2.853 / 3.941 |
+| R6a_s43 | 1.40, ×1.15 | 1.36, ×1.12 | 2.850 / 3.942 |
+
+- **The R3 > R6a gap at h2/h3 does not replicate.** On seed 43, random groups match or beat linguistic groups at every head on both sets (h1 IndicCorp 25.2 vs 23.6). Averaged over the two seeds, R3 − R6a is −0.5 / +1.2 / +2.1 points on IndicCorp and +0.1 / +0.4 / +0.3 on FLORES, within seed-to-seed variation (R3 alone moves 2.2-2.9 points between seeds).
+- **C1 reading:** the structural loss raises in-group accuracy over R2, and **random groups do the same.** The gain comes from the extra loss terms, not from the linguistic grouping. This agrees with Jainam's bootstrap on #39 and with Marathi (R10 = R10a).
+- Head 0, acceptance and speed are unchanged vs R2 on both seeds; fp32 re-check 20/20, `mean_new_tokens` 64.
+

@@ -17,8 +17,8 @@ Which runs are evaluated on which datasets. ⏳ = running, – = dropped (group-
 | R9 (mr) | 12500 | ✅ | flores_mr ✅ | ✅ | ✅ | – | `jainam2142/mtp-run-R9`; Misal-1B k=4 resblock, `--grouper mr_rules_v1` |
 | Rsd_soft | 12500 | ✅ | ✅ | ✅ | ✅ | – | `jainam2142/mtp-run-Rsd-soft`; Rsd + soft-label KL; = Rsd (×1.38 / ×1.31); `bench_verify` ✅ |
 | Rsd_k6 | 12500 | ✅ | ✅ | ✅ | ✅ | – | `jainam2142/mtp-run-Rsd-k6`; 6 heads; 1.71 tokens/step but ×1.28 (heads cost ~2 ms each); `bench_verify` ✅ |
-| R3_s43 | 12500 | ⬜ | ⬜ | ⬜ | ⬜ | – | `jainam2142/mtp-run-R3-s43`; second seed of R3 |
-| R6a_s43 | 12500 | ⬜ | ⬜ | ⬜ | ⬜ | – | `jainam2142/mtp-run-R6a-s43`; second seed of R6a, `--grouper hi_rules_v0` |
+| R3_s43 | 12500 | ✅ | ✅ | ✅ | ✅ | – | `jainam2142/mtp-run-R3-s43`; second seed of R3; in-group h1 23.6 (below R6a_s43); `bench_verify` ✅ |
+| R6a_s43 | 12500 | ✅ | ✅ | ✅ | ✅ | – | `jainam2142/mtp-run-R6a-s43`; `--grouper hi_rules_v0`; R3 > R6a gap does not replicate; `bench_verify` ✅ |
 | R10 (mr) | 12500 | ⬜ | flores_mr ⬜ | ⬜ | ⬜ | – | `jainam2142/mtp-run-R10`; R3 recipe on Misal, `mr_rules_v1` |
 | R10a (mr) | 12500 | ⬜ | flores_mr ⬜ | ⬜ | ⬜ | – | `jainam2142/mtp-run-R10a`; random_mr_v1 control, `--grouper mr_rules_v1` |
 | Rsd_mr (mr) | 12500 | ⬜ | flores_mr ⬜ | ⬜ | ⬜ | – | `jainam2142/mtp-run-Rsd-mr`; frozen Misal-instruct: `ignore_eos` (#46) |
