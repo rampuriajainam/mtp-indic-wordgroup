@@ -173,7 +173,7 @@ Self-speculative decoding (FixedK, k = 4) on 100 prompts from IndicCorp eval sen
 
 1. The in-group gain of the masked variants is real (it holds on the same sentences; seed-to-seed variance is still unmeasured).
 2. It does not turn into acceptance. Only S3all improves acceptance, and only slightly.
-3. **Every variant drafts about 1.32 tokens per step.** No structural-loss choice changes that by more than ±0.02, so speculative decoding stays slower than greedy (R2: 0.72-0.87× in fp32). The structural loss is a second-order choice; the bottleneck is how good the drafters are.
+3. **Every variant drafts about 1.32 tokens per step.** No structural-loss choice changes that by more than ±0.02. (An R2 speed-up of 0.72-0.87× measured at this point was wrong: another job shared the GPU. Re-measured alone it is 1.24× FixedK; see Rsd below.) The structural loss is a second-order choice; the bottleneck is how good the drafters are.
 
 **Next levers (run with R3, 2,000-step pilots, judged on acceptance):**
 - **Self-distillation (`pilot_sd`):** train on the base model's own greedy continuations of training prompts (`scripts/gen_selfdistill.py`, `data.train_file`). On that text head d's CE target is head 0's greedy token, which is exactly what acceptance measures (Medusa-2). S3all, the only variant that moved acceptance, is a weak form of this.
@@ -224,3 +224,26 @@ Head 0 = the base model in every run (h0 2.8653 on IC eval in all four; R2ref's 
 3. Real-text top-1 of the heads drops slightly (they now model the base model, not the corpus). That is the intended trade.
 
 **Next: `Rsd`.** The same recipe at full length: 100k generated texts, 12.5k steps. `Rsd_s43` is a replicate with `data.shuffle` (a seeded order). With zero-init heads and a frozen backbone the seed alone changes nothing, so the replicate needs a new data order.
+
+### Rsd results (2026-10-10, commit a4f1ff4): the full-length self-distillation run
+
+Acceptance on 100 IndicCorp-eval prompts + paired bootstrap vs R2, all at 12.5k steps:
+
+| run | mean accepted length | h1 / h2 / h3 acceptance | h1 in-group top-1 (real text) |
+|---|---|---|---|
+| R2 | 1.370 | 30.1 / 6.1 / 1.4% | 23.4% |
+| R3 (S23_mix) | 1.380 (+0.010 [−0.013, +0.033]) | 30.9 / 6.3 / 1.5% | +2.3 ✓ |
+| **Rsd** | **1.649 (+0.279 [+0.215, +0.353])** | **41.0 / 17.1 / 8.2%** | −3.4 ✓ |
+| **Rsd_s43** (replicate) | **1.664 (+0.294 [+0.233, +0.366])** | 41.6 / 18.0 / 8.3% | −3.3 ✓ |
+
+Wall-clock speed-up over greedy (fp32, RTX 4060, first 20 flores_hi prompts, both models measured alone, back to back; outputs match greedy exactly in both):
+
+| run | tokens/step | FixedK | ConfidenceCut (τ 0.5) |
+|---|---|---|---|
+| R2 | 1.34 | 1.24× | 0.97× |
+| **Rsd** | 1.61 | **1.53×** | 1.31× |
+
+1. **Frozen self-distillation is the method's main gain:** +0.28 tokens/step and +23% wall-clock over R2. It is lossless (head 0 = the base model) and reproducible (the replicates agree within 0.015).
+2. 2k → 12.5k steps took it from 1.51 to 1.65 tokens/step. More data / steps may help further.
+3. The heads get worse at predicting real text and better at predicting the model itself. For speculative decoding only the second matters.
+4. **Word groups:** the structural losses lift in-group accuracy (R3 +2.3) but not acceptance, and they do not stack with self-distillation. Where word groups can still matter is in **how drafts are spent**: GroupAware and a group-aware draft tree (oracle: a (3,2,1) tree takes R2 from 1.46 to 1.78 tokens/step). That is the next experiment on the method side.
