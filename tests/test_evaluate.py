@@ -127,6 +127,19 @@ def test_hindi_grouper_on_marathi_dataset_evaluates_without_split(evaluate, tiny
     assert mr["per_head"][0]["n_in_group"] == 0
 
 
+def test_resolve_ignore_eos(evaluate):
+    from types import SimpleNamespace
+
+    frozen_instruct = SimpleNamespace(freeze_backbone=True, model_name="smallstepai/Misal-1B-instruct-v0.1")
+    lora_instruct = SimpleNamespace(freeze_backbone=False, model_name="smallstepai/Misal-1B-instruct-v0.1")
+    frozen_base = SimpleNamespace(freeze_backbone=True, model_name="LingoIITGN/ganga-1b")
+    assert evaluate.resolve_ignore_eos("auto", frozen_instruct) is True     # Rsd_mr
+    assert evaluate.resolve_ignore_eos("auto", lora_instruct) is False      # R9
+    assert evaluate.resolve_ignore_eos("auto", frozen_base) is False        # Rsd (Hindi)
+    assert evaluate.resolve_ignore_eos("on", frozen_base) is True
+    assert evaluate.resolve_ignore_eos("off", frozen_instruct) is False
+
+
 def test_grouper_for_lang(evaluate):
     spec = "hi:hi_rules_v0, mr:mr_rules_v1"
     assert evaluate.grouper_for_lang(spec, "hi") == "hi_rules_v0"
@@ -146,7 +159,8 @@ def test_flores_alias_and_per_language_grouper(evaluate, tiny_run, tmp_path):
 
 
 SPEC_KEYS = {"policy", "mean_accepted_len", "accept_rate_per_head", "tokens_per_sec", "greedy_tokens_per_sec",
-             "speedup", "outputs_match_greedy", "group_integrity", "n_prompts", "match_rate", "max_mismatch_margin", "fp32_check"}
+             "speedup", "outputs_match_greedy", "group_integrity", "n_prompts", "match_rate", "max_mismatch_margin", "fp32_check",
+             "mean_new_tokens", "ignore_eos"}
 LONG = ["मैं कल बाजार जा रहा था। वह घर से आया था भारत एक विशाल और विविधतापूर्ण देश है।",
         "बच्चे पार्क में खेल रहे हैं। के बारे बात कर वह घर से आया था मैं कल बाजार जा रहा था।"]
 

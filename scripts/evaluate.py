@@ -18,6 +18,8 @@ and Marathi runs can share one command line (a language not listed uses the run'
 
 --spec_decode adds the §10 spec_decode section (mtp.eval.spec_decode): prompts are the first 8-16
 words of the first --spec_n sentences of each dataset, batch size 1, outputs checked against greedy.
+--ignore_eos auto (default) masks EOS for head 0 when the run has a frozen backbone on an *instruct*
+base model (frozen Misal-1B stops after one sentence, #39); on / off force it. Recorded per entry.
 Re-running with the same run, step and grouper updates only the sections it computes, so per-head
 and spec-decode numbers can come from separate sessions (--no_heads skips the per-head part).
 """
@@ -63,6 +65,16 @@ def grouper_for_lang(spec, lang):
         return spec or None
     by_lang = dict(part.strip().split(":", 1) for part in spec.split(",") if part.strip())
     return by_lang.get(lang) or None
+
+
+def resolve_ignore_eos(value, cfg):
+    """auto: on for a frozen backbone on an instruct base model (it keeps stopping at EOS after one
+    sentence); LoRA-tuned runs (R9) and base models (ganga-1b) run to max_new_tokens anyway."""
+    if value in (True, "on"):
+        return True
+    if value in (False, "off", None):
+        return False
+    return bool(cfg_get(cfg, "freeze_backbone", False)) and "instruct" in str(cfg.model_name).lower()
 
 
 def resolve_grouper(name, lang):
@@ -141,7 +153,7 @@ def make_policies(names, tau):
 
 def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT / "results", dump_tokens=False,
                  spec_decode=False, policies=("fixed_k", "confidence_cut"), tau=0.5, spec_n=200, max_new_tokens=64,
-                 fp32_check_n=20,
+                 fp32_check_n=20, ignore_eos="auto",
                  heads=True, bench_verify=False, device="auto", batch_size=None, n=None, texts_fn=load_texts):
     """Evaluate one run on each dataset; returns {dataset: path of eval_{dataset}.json}.
     heads=False skips the per-head section (e.g. a session that only adds spec_decode)."""
@@ -168,7 +180,9 @@ def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT /
     grouper_name = grouper_for_lang(grouper_name, cfg.lang) or cfg_get(cfg, "data.grouper")
     datasets = [f"flores_{cfg.lang}" if d == "flores" else d for d in datasets]
     collator = Collator(tokenizer.pad_token_id)
-    print(f"run {cfg.run_name} | step {model.loaded_step} | heads {model.num_heads} | device {device}")
+    ignore_eos = resolve_ignore_eos(ignore_eos, cfg)
+    print(f"run {cfg.run_name} | step {model.loaded_step} | heads {model.num_heads} | device {device}"
+          + (" | ignore_eos" if ignore_eos and spec_decode else ""))
     if spec_decode and model.num_heads < 2:
         warnings.warn(f"{cfg.run_name} has one head (no drafts): skipping speculative decoding")
         draft_policies = []
@@ -207,7 +221,8 @@ def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT /
             # fp16 autocast only where the run uses it (T4); the fp32 re-check then turns it off
             amp = (lambda: autocast_ctx(cfg)) if uses_fp16_autocast(cfg) else None
             spec = evaluate_spec_decode(model, tokenizer, prompts, draft_policies, max_new_tokens=max_new_tokens,
-                                        grouper=grouper, amp=amp, log_every=25, fp32_check_n=fp32_check_n)
+                                        grouper=grouper, amp=amp, log_every=25, fp32_check_n=fp32_check_n,
+                                        ignore_eos=ignore_eos)
         record = {
             "run_name": cfg.run_name, "dataset": name, "step": model.loaded_step, "grouper": used_grouper,
             "git_commit": cfg_get(cfg, "git_commit"), "per_head": per_head, "spec_decode": spec,
@@ -242,6 +257,8 @@ def main(argv=None):
                     help="time one verify pass vs positions scored (1..64) -> results/{run}/bench_verify.json")
     ap.add_argument("--fp32_check_n", type=int, default=20,
                     help="under fp16 autocast, re-run this many prompts in fp32: outputs must equal greedy")
+    ap.add_argument("--ignore_eos", choices=["auto", "on", "off"], default="auto",
+                    help="mask EOS for head 0 in spec decode; auto = frozen backbone on an instruct model")
     ap.add_argument("--device", default="auto")
     ap.add_argument("--batch_size", type=int, default=None, help="default: optim.batch_size of the run")
     ap.add_argument("--n", type=int, default=None, help="cap sentences per dataset (smoke tests)")
@@ -250,7 +267,7 @@ def main(argv=None):
     evaluate_run(args.run_dir, args.datasets, step=args.step, grouper_name=args.grouper, out_dir=args.out,
                  dump_tokens=args.dump_tokens, spec_decode=args.spec_decode, policies=args.policies, tau=args.tau,
                  spec_n=args.spec_n, max_new_tokens=args.max_new_tokens, fp32_check_n=args.fp32_check_n,
-                 heads=not args.no_heads, bench_verify=args.bench_verify,
+                 ignore_eos=args.ignore_eos, heads=not args.no_heads, bench_verify=args.bench_verify,
                  device=args.device, batch_size=args.batch_size, n=args.n)
 
 

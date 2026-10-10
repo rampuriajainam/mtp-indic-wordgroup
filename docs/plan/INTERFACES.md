@@ -224,10 +224,10 @@ Only the last 2 step folders are kept, plus `keep_steps`. A published run = this
                    "tokens_per_sec": 31.5, "greedy_tokens_per_sec": 24.0, "speedup": 1.31,
                    "outputs_match_greedy": true, "match_rate": 1.0, "max_mismatch_margin": null,
                    "fp32_check": {"n_prompts": 20, "match_rate": 1.0, "outputs_match_greedy": true, "max_mismatch_margin": null},
-                   "group_integrity": 0.71, "n_prompts": 200}]
+                   "group_integrity": 0.71, "n_prompts": 200, "mean_new_tokens": 64.0, "ignore_eos": false}]
 }
 ```
-`outputs_match_greedy` = every prompt identical to greedy in the timed run; `match_rate` = share of prompts identical; `max_mismatch_margin` = largest greedy top-1 minus top-2 logit at a point where an output diverged (tiny = a near-tie flipped by fp16 rounding). `fp32_check` (only under fp16 autocast, e.g. T4) re-runs the first 20 prompts with autocast off: it must be all identical, else the engine has a bug (its own `max_mismatch_margin` tells a sub-1e-5 fp32 tie from a real bug); `null` when the run has no autocast.
+`outputs_match_greedy` = every prompt identical to greedy in the timed run; `match_rate` = share of prompts identical; `max_mismatch_margin` = largest greedy top-1 minus top-2 logit at a point where an output diverged (tiny = a near-tie flipped by fp16 rounding). `fp32_check` (only under fp16 autocast, e.g. T4) re-runs the first 20 prompts with autocast off: it must be all identical, else the engine has a bug (its own `max_mismatch_margin` tells a sub-1e-5 fp32 tie from a real bug); `null` when the run has no autocast. `mean_new_tokens` = generated tokens per prompt (well below `max_new_tokens` = the model stops at EOS early); `ignore_eos` = EOS was masked for head 0 in greedy and in the verifier (`evaluate.py --ignore_eos auto`: frozen backbone on an instruct base, i.e. Rsd_mr), so the output is still identical to (masked) greedy. Entries written before these fields existed lack them.
 
 In-group / at-boundary are defined exactly as `scripts/train.py`'s `evaluate` (target t+d+1 in source t's group). For the same model, data and step, OM-4's numbers must match train.py's logged eval to 1e-3. A split with no positions (`n_in_group` or `n_at_boundary` = 0, e.g. head 3 on short groups) has `null` top1/loss; train.py logs 0.0 there.
 
@@ -271,9 +271,9 @@ POLICIES = {"fixed_k": FixedK, "confidence_cut": ConfidenceCut, "group_aware": G
 
 ```python
 # mtp/eval/spec_decode.py
-def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None, *, use_cache=True, amp=None) -> tuple[list[int], dict]
-def greedy_generate(model, tokenizer, prompt_ids, max_new_tokens, *, use_cache=True, amp=None) -> tuple[list[int], dict]  # base LM = head 0
-def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64, grouper=None, use_cache=True, amp=None) -> list[dict]  # §10 spec_decode entries
+def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None, *, use_cache=True, amp=None, ignore_eos=False) -> tuple[list[int], dict]
+def greedy_generate(model, tokenizer, prompt_ids, max_new_tokens, *, use_cache=True, amp=None, ignore_eos=False) -> tuple[list[int], dict]  # base LM = head 0
+def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64, grouper=None, use_cache=True, amp=None, ..., ignore_eos=False) -> list[dict]  # §10 spec_decode entries
 def make_prompts(texts, tokenizer, n=200, min_words=8, max_words=16, seed=0) -> list[list[int]]
 # amp: a context-manager factory, e.g. lambda: autocast_ctx(cfg). The engine clamps a policy's answer to 0..k-1.
 ```
