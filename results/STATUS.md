@@ -7,7 +7,7 @@ Which runs are evaluated on which datasets. ⏳ = running.
 | R0 | 12500 | ✅ | ✅ | – | – | – | NTP, 1 head (no drafts) |
 | R1 | 12500 | ✅ | ✅ | ✅ | ✅ | ⬜ | spec: fp16 81-89% identical (near-ties), fp32 re-check 20/20 |
 | R2 | 12500 | ✅ | ✅ | ✅ | ✅ | ⬜ | spec: fp32 re-check 20/20 except indiccorp fixed_k 19/20 (open) |
-| R3 | 12500 | ⏳ | ⏳ | ⏳ | ⏳ | ⬜ | `jainam2142/mtp-run-R3`; official eval running on Kaggle |
+| R3 | 12500 | ✅ | ✅ | ✅ | ✅ | ⬜ | `jainam2142/mtp-run-R3`; fp32 re-check 20/20 everywhere; in-group h1-h3 up, acceptance unchanged vs R2 |
 | Rsd | 12500 | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | `jainam2142/mtp-run-rsd`; frozen backbone (head 0 = base model), self-distillation |
 | Rsd_s43 | 12500 | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | replicate of Rsd (shuffled data order) |
 | R6a | | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | needs JI-4 |

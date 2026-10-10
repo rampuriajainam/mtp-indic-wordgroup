@@ -91,3 +91,31 @@ Accepted length = tokens per step (greedy = 1.0). Speed-up = tokens/s vs greedy 
 - **Speed-up:** FixedK gives ×1.12-1.25. ConfidenceCut (τ = 0.5) proposes few drafts (~1.05-1.10 tokens/step) and is slower than greedy for R2. The far heads of R2 are rarely accepted (h2 6-7%, h3 1-2%), so R2's extra heads add cost without adding accepted tokens; R1's single linear head gives the best speed-up.
 - **Correctness:** in fp16, 81-89% of prompts are identical to greedy. Every divergence happens at a near-tie: greedy's top-2 logit margin there is at most 0.0156 = 2⁻⁶, one fp16 step at these logit sizes (some exactly 0, true ties). The fp32 re-check of the same engine (autocast off) is 20/20 identical in 11 of 12 cases.
 - **Open:** R2 / indiccorp_eval / fixed_k is 19/20 in the fp32 re-check. Its divergence margin was not recorded, so a sub-1e-5 fp32 tie is likely but not shown; ConfidenceCut on the same 20 prompts is 20/20. Next run records fp32 margins.
+
+## R3 vs R2 (OM-8, official eval)
+
+R3 = `R3_hi_k4_struct` (S23_mix, λ_S3 0.25, λ_S3_all 0.25, chain teacher), `jainam2142/mtp-run-R3`, step 12500. Same eval as R0-R2: Kaggle T4, grouper `hi_rules_v0`, 200 spec-decode prompts.
+
+| dataset | head | loss R2 → R3 | top-1 R2 → R3 | in-group top-1 R2 → R3 (n targets) | boundary top-1 R2 → R3 |
+|---|---|---|---|---|---|
+| indiccorp_eval | h0 | 2.841 → 2.849 (+0.008) | 42.4% → 42.3% | 58.3% → 58.3% (8,729) | 34.6% → 34.6% |
+| indiccorp_eval | h1 | 5.367 → 5.320 (-0.047) | 15.0% → 15.5% | 23.4% → 25.8% (1,886) | 14.3% → 14.7% |
+| indiccorp_eval | h2 | 6.290 → 6.256 (-0.033) | 8.1% → 8.4% | 19.0% → 24.1% (557) | 7.8% → 8.0% |
+| indiccorp_eval | h3 | 6.707 → 6.678 (-0.030) | 5.3% → 5.5% | 17.5% → 22.2% (171) | 5.2% → 5.3% |
+| flores_hi | h0 | 3.946 → 3.944 (-0.002) | 30.3% → 30.2% | 44.1% → 44.1% (11,025) | 21.9% → 21.7% |
+| flores_hi | h1 | 6.358 → 6.299 (-0.059) | 10.3% → 10.6% | 12.5% → 14.3% (3,116) | 10.0% → 10.1% |
+| flores_hi | h2 | 7.070 → 7.016 (-0.053) | 5.9% → 6.2% | 12.1% → 14.0% (1,009) | 5.7% → 5.9% |
+| flores_hi | h3 | 7.341 → 7.296 (-0.045) | 4.4% → 4.5% | 12.1% → 13.1% (298) | 4.3% → 4.4% |
+
+| dataset | policy | accepted len R2 → R3 | speed-up R2 → R3 | R3 identical to greedy (fp16) | R3 fp32 re-check |
+|---|---|---|---|---|---|
+| indiccorp_eval | fixed_k | 1.39 → 1.39 | ×1.14 → ×1.15 | 84.5% of prompts | 20/20 |
+| indiccorp_eval | confidence_cut | 1.10 → 1.11 | ×0.94 → ×0.94 | 84.5% of prompts | 20/20 |
+| flores_hi | fixed_k | 1.36 → 1.35 | ×1.12 → ×1.12 | 87.5% of prompts | 20/20 |
+| flores_hi | confidence_cut | 1.07 → 1.07 | ×0.91 → ×0.91 | 88.0% of prompts | 20/20 |
+
+- **In-group accuracy of the far heads goes up, on both datasets.** IndicCorp h1 / h2 / h3: +2.4 / +5.1 / +4.7 points; FLORES (out of domain): +1.8 / +1.9 / +1.0. Boundary top-1 barely moves (≤ +0.4), so the gain is where the loss targets it. Loss improves for every extra head (−0.03 to −0.06).
+- **Head 0 is held:** +0.008 on IndicCorp eval, −0.002 on FLORES.
+- **Acceptance and speed are unchanged** (1.39 vs 1.39 tokens/step, ×1.15 vs ×1.14 FixedK on IndicCorp), matching Jainam's 100-prompt check (design note §5). The structural loss improves *what* the heads predict inside groups, not how often head 0 agrees with them.
+- **Correctness:** fp32 re-check 20/20 for every policy and dataset; fp16 divergences again only at near-ties (margin ≤ 0.0156).
+- h3 in-group counts are small (171 IndicCorp, 298 FLORES): read h3's in-group numbers as noisy.
