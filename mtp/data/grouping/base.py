@@ -14,7 +14,8 @@ GROUP_TYPES = ("single", "aux_chain", "postposition", "compound_postposition", "
 
 REGISTRY = {
     "hi_rules_v0": "mtp.data.grouping.hindi_rules:HindiRuleGrouperV0",
-    # Jai adds: "hi_rules_v1", "mr_rules_v1", "trankit", "random"
+    "random": "mtp.data.grouping.random_grouper:RandomGrouper",
+    # Jai adds: "hi_rules_v1", "mr_rules_v1", "trankit"
 }
 
 
