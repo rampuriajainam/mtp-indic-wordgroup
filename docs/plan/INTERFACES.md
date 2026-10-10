@@ -238,6 +238,13 @@ def evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_pa
 # texts (aligned with examples) fill the dump's "text" field, null if not given
 ```
 
+Verify-pass cost (`--bench_verify`), `results/{run_name}/bench_verify.json`: the wall-clock of ONE verification pass (full MTPModel forward on a cached 64-token prefix, then rolled back) vs the number of positions it scores (chain drafts or tree nodes), for sizing draft trees (#33):
+```json
+{"run_name": "...", "step": 12500, "device": "cuda:0", "gpu": "Tesla T4", "fp16_autocast": true, "prefix_len": 64,
+ "greedy_ms": 36.0, "passes": [{"positions": 1, "ms": 37.0, "ms_p90": 38.1, "x_greedy": 1.03}, {"positions": 25, "ms": 40.2, "ms_p90": 41.0, "x_greedy": 1.12}]}
+```
+`greedy_ms` = greedy's single-token base-LM pass; `ms` = median over repeats. (Example numbers are illustrative.)
+
 Per-token dump (`--dump_tokens`), `results/{run_name}/tokens_{dataset}.jsonl`, one line per (sentence, position, head):
 ```json
 {"sent_id": 17, "text": "मैं कल बाजार जा रहा था।", "token_idx": 5, "token": "▁रहा", "head": 2, "target_idx": 8, "correct": true, "rank": 1, "group_start": 0, "group_id": 3, "target_group_id": 3}

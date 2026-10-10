@@ -297,3 +297,55 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
             "n_prompts": len(prompts),
         })
     return results
+
+
+@torch.no_grad()
+def bench_verify_pass(model, prefix_ids, sizes=(1, 4, 8, 16, 25, 32, 64), repeats=20, warmup=3, amp=None, seed=0):
+    """Wall-clock of ONE verification pass as a function of how many new positions it scores
+    (chain drafts or tree nodes), on top of a cached prefix: the full MTPModel forward (all heads),
+    then the cache is rolled back. Also times greedy's single-token base-LM pass for reference.
+
+    Returns {"prefix_len", "greedy_ms", "passes": [{"positions", "ms", "ms_p90", "x_greedy"}]}, medians
+    over `repeats`. A tree pass also needs a custom attention mask; its cost is close to the causal one."""
+    device = next(model.parameters()).device
+    amp = amp or contextlib.nullcontext
+    gen = torch.Generator().manual_seed(seed)
+    vocab = model.base_model.get_output_embeddings().out_features
+    prefix = torch.tensor([list(prefix_ids)], device=device)
+
+    def timed(fn, n_rep):
+        times = []
+        for _ in range(n_rep):
+            _sync(device)
+            t0 = time.perf_counter()
+            fn()
+            _sync(device)
+            times.append(1000 * (time.perf_counter() - t0))
+        times.sort()
+        return times[len(times) // 2], times[min(len(times) - 1, int(0.9 * len(times)))]
+
+    with amp():
+        out = model(prefix, use_cache=True)
+        cache = out.aux["past_key_values"]
+        base_out = model.base_model(input_ids=prefix, use_cache=True)
+        base_cache = base_out.past_key_values
+
+        def greedy_pass():
+            tok = torch.randint(0, vocab, (1, 1), generator=gen).to(device)
+            model.base_model(input_ids=tok, past_key_values=base_cache, use_cache=True)
+            _crop(base_cache, 1)
+
+        timed(greedy_pass, warmup)
+        greedy_ms, _ = timed(greedy_pass, repeats)
+
+        passes = []
+        for n in sizes:
+            def verify_pass(n=n):
+                toks = torch.randint(0, vocab, (1, n), generator=gen).to(device)
+                model(toks, past_key_values=cache, use_cache=True)
+                _crop(cache, n)
+
+            timed(verify_pass, warmup)
+            ms, p90 = timed(verify_pass, repeats)
+            passes.append({"positions": n, "ms": ms, "ms_p90": p90, "x_greedy": ms / greedy_ms if greedy_ms else None})
+    return {"prefix_len": prefix.shape[1], "greedy_ms": greedy_ms, "passes": passes}
