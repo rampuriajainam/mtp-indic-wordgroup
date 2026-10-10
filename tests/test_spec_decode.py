@@ -175,7 +175,7 @@ class OracleDrafts(nn.Module):
         return out
 
 
-@pytest.mark.parametrize("head_type,structural", [("linear", None), ("resblock", None), ("resblock", "S2")])
+@pytest.mark.parametrize("head_type,structural", [("linear", None), ("resblock", None), ("resblock", "S2"), ("seq", None)])
 @pytest.mark.parametrize("use_cache", [True, False])
 def test_outputs_identical_to_greedy_on_20_prompts(tiny_model_dir, tmp_path, head_type, structural, use_cache):
     model, tok = _tiny_model(tiny_model_dir, tmp_path, head_type, structural)

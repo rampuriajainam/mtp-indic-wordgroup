@@ -12,6 +12,14 @@ head_type="resblock" : Medusa-1. h_d = ResBlock^n(h), logits_d = lm_head(h_d),
                        so every head starts as an exact copy of head 0. The
                        base lm_head is shared (frozen under LoRA), so each
                        extra head costs only n_layers * (hidden^2 + hidden).
+head_type="seq"      : sequential (Hydra / EAGLE-style) heads. Head d also reads the
+                       tokens it drafts on top of: s_0 = h_t,
+                       s_d = s_{d-1} + SiLU(W_d [s_{d-1}; e(x_{t+d})] + b_d), logits_d = lm_head(s_d),
+                       e = the base input embeddings (detached), W_d, b_d zero-init (so it
+                       starts as head 0, like resblock). In forward() x_{t+d} is the input
+                       token at t+d (teacher forcing; zeros past the end), so at the last
+                       positions the extra-head logits are not drafts: decoding calls
+                       draft_chain(), which feeds head 0's token and then each draft.
 
 backbone_grad scales the gradient that heads 1..k-1 send back into the shared
 hidden state (and so into LoRA): 1.0 = full joint training, 0.0 = the extra
@@ -25,7 +33,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-HEAD_TYPES = ("linear", "resblock")
+HEAD_TYPES = ("linear", "resblock", "seq")
 
 
 @dataclass
@@ -51,6 +59,19 @@ class ResBlock(nn.Module):
 
     def forward(self, x):
         return x + F.silu(self.linear(x))
+
+
+class SeqBlock(nn.Module):
+    """s + SiLU(W [s; e] + b): one sequential head step, zero-initialised (starts as the identity in s)."""
+
+    def __init__(self, hidden_size, dtype=None, device=None):
+        super().__init__()
+        self.linear = nn.Linear(2 * hidden_size, hidden_size, dtype=dtype, device=device)
+        nn.init.zeros_(self.linear.weight)
+        nn.init.zeros_(self.linear.bias)
+
+    def forward(self, s, e):
+        return s + F.silu(self.linear(torch.cat([s, e], dim=-1)))
 
 
 class MTPModel(nn.Module):
@@ -94,6 +115,8 @@ class MTPModel(nn.Module):
                 nn.Linear(hidden_size, vocab_size, bias=False, **factory)
                 for _ in range(num_heads - 1)
             ])
+        elif head_type == "seq":
+            self.extra_heads = nn.ModuleList([SeqBlock(hidden_size, **factory) for _ in range(num_heads - 1)])
         else:
             self.extra_heads = nn.ModuleList([
                 nn.Sequential(*[ResBlock(hidden_size, **factory) for _ in range(n_layers)])
@@ -142,14 +165,25 @@ class MTPModel(nn.Module):
         head_hidden = [hidden]
         a = self.backbone_grad
         h_in = hidden if a == 1.0 else (hidden.detach() if a == 0.0 else a * hidden + (1 - a) * hidden.detach())
-        for head in self.extra_heads:
-            if self.head_type == "linear":
-                logits.append(head(h_in))
-                head_hidden.append(h_in)
-            else:
-                h_d = head(h_in)
-                logits.append(lm_head(h_d))
-                head_hidden.append(h_d)
+        if self.head_type == "seq":
+            emb = self.base_model.get_input_embeddings()(input_ids).detach()
+            s = h_in
+            for d, head in enumerate(self.extra_heads, start=1):
+                e = torch.zeros_like(emb)
+                if emb.shape[1] > d:
+                    e[:, : emb.shape[1] - d] = emb[:, d:]      # x_{t+d} at position t
+                s = head(s, e.to(s.dtype))
+                logits.append(lm_head(s))
+                head_hidden.append(s)
+        else:
+            for head in self.extra_heads:
+                if self.head_type == "linear":
+                    logits.append(head(h_in))
+                    head_hidden.append(h_in)
+                else:
+                    h_d = head(h_in)
+                    logits.append(lm_head(h_d))
+                    head_hidden.append(h_d)
 
         aux = {"head_hidden": head_hidden}
         if len(self.boundary_probes):
@@ -157,3 +191,16 @@ class MTPModel(nn.Module):
         if use_cache:
             aux["past_key_values"] = out.past_key_values
         return MTPOutput(logits=logits, hidden=hidden, aux=aux)
+
+    @torch.no_grad()
+    def draft_chain(self, h, t0: int, n: int) -> list[int]:
+        """Greedy chain drafts for head_type "seq": h = last hidden state [H] at the position whose
+        head-0 token is t0. Returns the n drafted tokens for t+2 .. t+n+1."""
+        embed, lm_head = self.base_model.get_input_embeddings(), self._lm_head()
+        s, tok, out = h, t0, []
+        for head in self.extra_heads[:n]:
+            e = embed(torch.tensor([tok], device=h.device))[0]
+            s = head(s, e.to(s.dtype))
+            tok = int(lm_head(s).argmax())
+            out.append(tok)
+        return out
