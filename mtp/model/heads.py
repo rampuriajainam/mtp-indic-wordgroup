@@ -66,7 +66,7 @@ class MTPModel(nn.Module):
     """
 
     def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1,
-                 backbone_grad: float = 1.0, boundary_probes: bool = False, **kw):
+                 backbone_grad: float = 1.0, boundary_probes: bool = False, contrastive_dim: int = 0, **kw):
         super().__init__()
         if num_heads < 1:
             raise ValueError(f"num_heads must be >= 1, got {num_heads}")
@@ -102,6 +102,11 @@ class MTPModel(nn.Module):
         self.boundary_probes = nn.ModuleList(
             [nn.Linear(hidden_size, 1, **factory) for _ in range(num_heads)] if boundary_probes else []
         )
+        # JN-6: 2-layer projection of the last hidden state for the contrastive loss (None = off)
+        self.contrastive_proj = nn.Sequential(
+            nn.Linear(hidden_size, hidden_size, **factory), nn.GELU(),
+            nn.Linear(hidden_size, contrastive_dim, **factory),
+        ) if contrastive_dim > 0 else None
 
     def head_state_dict(self):
         """Trainable non-base parameters (extra heads + probes), for heads.pt."""
@@ -110,7 +115,7 @@ class MTPModel(nn.Module):
     def load_head_state_dict(self, state):
         """Inverse of head_state_dict. Also accepts the legacy MedusaWrapper /
         extra_heads-only format ("0.weight", ...)."""
-        if state and not any(k.startswith(("extra_heads.", "boundary_probes.")) for k in state):
+        if state and not any(k.startswith(("extra_heads.", "boundary_probes.", "contrastive_proj.")) for k in state):
             state = {f"extra_heads.{k}": v for k, v in state.items()}
         own = self.head_state_dict()
         missing, unexpected = own.keys() - state.keys(), state.keys() - own.keys()
@@ -154,6 +159,8 @@ class MTPModel(nn.Module):
         aux = {"head_hidden": head_hidden}
         if len(self.boundary_probes):
             aux["boundary_logits"] = [probe(h).squeeze(-1) for probe, h in zip(self.boundary_probes, head_hidden)]
+        if self.contrastive_proj is not None:
+            aux["contrastive_z"] = F.normalize(self.contrastive_proj(hidden).float(), dim=-1)
         if use_cache:
             aux["past_key_values"] = out.past_key_values
         return MTPOutput(logits=logits, hidden=hidden, aux=aux)
