@@ -45,9 +45,21 @@ def _step_state(out, pos, tokenizer, grouper, step):
             "tokenizer": tokenizer, "grouper": grouper, "step": step}
 
 
+def _no_eos(logits, eos):
+    """logits with the EOS column at -inf (ignore_eos), else unchanged; works on [V] and [n, V]."""
+    if eos is None:
+        return logits
+    logits = logits.clone()
+    logits[..., eos] = float("-inf")
+    return logits
+
+
 @torch.no_grad()
-def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None, *, use_cache=True, amp=None):
+def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None, *, use_cache=True, amp=None,
+             ignore_eos=False):
     """Returns (generated ids, stats). Output == greedy decoding with head 0.
+    ignore_eos: head 0 never picks EOS (masked in the verifier as in greedy_generate), so decoding runs
+    to max_new_tokens: for models that stop after one sentence (frozen instruct Misal-1B).
 
     stats: tokens, forward_passes (incl. the prompt pass), steps, mean_accepted_len (tokens/step),
     proposed / accepted per extra head, seconds, tokens_per_sec, gi_hits / gi_spans (Group
@@ -55,7 +67,8 @@ def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None,
     device = next(model.parameters()).device
     amp = amp or contextlib.nullcontext
     k = model.num_heads
-    eos = tokenizer.eos_token_id
+    ban = tokenizer.eos_token_id if ignore_eos else None
+    eos = None if ignore_eos else tokenizer.eos_token_id      # None: never stop early
     seq = [int(t) for t in prompt_ids]
     new, spans = [], []
     proposed, accepted = [0] * (k - 1), [0] * (k - 1)
@@ -70,7 +83,7 @@ def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None,
         pos = -1                                   # index (in out's positions) of the last emitted token
         while len(new) < max_new_tokens:
             last = [lg[0, pos] for lg in out.logits]
-            t0 = int(last[0].argmax())
+            t0 = int(_no_eos(last[0], ban).argmax())
             n = policy.num_draft_tokens(last, torch.tensor(seq), _step_state(out, pos, tokenizer, grouper, steps))
             n = max(0, min(int(n), k - 1, max_new_tokens - len(new) - 1))
             if t0 == eos:
@@ -87,7 +100,7 @@ def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None,
             inp = block if use_cache else seq + block
             out = model(torch.tensor([inp], device=device), past_key_values=cache, use_cache=use_cache)
             passes += 1
-            head0 = out.logits[0][0, -len(block):]  # row i predicts the token after block[i]
+            head0 = _no_eos(out.logits[0][0, -len(block):], ban)  # row i predicts the token after block[i]
             j = 0
             while j < n and int(head0[j].argmax()) == drafts[j]:
                 j += 1
@@ -121,13 +134,15 @@ def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None,
 
 
 @torch.no_grad()
-def greedy_generate(model, tokenizer, prompt_ids, max_new_tokens, *, use_cache=True, amp=None):
+def greedy_generate(model, tokenizer, prompt_ids, max_new_tokens, *, use_cache=True, amp=None, ignore_eos=False):
     """Plain greedy decoding with head 0 = the base LM (model.base_model). Returns (ids, stats);
-    stats["margins"][i] = top-1 minus top-2 logit when token i was chosen (small = a near-tie)."""
+    stats["margins"][i] = top-1 minus top-2 logit when token i was chosen (small = a near-tie).
+    ignore_eos: EOS is masked, so the output always has max_new_tokens tokens."""
     device = next(model.parameters()).device
     amp = amp or contextlib.nullcontext
     base = model.base_model
-    eos = tokenizer.eos_token_id
+    ban = tokenizer.eos_token_id if ignore_eos else None
+    eos = None if ignore_eos else tokenizer.eos_token_id
     seq = [int(t) for t in prompt_ids]
     new, margins, passes = [], [], 0
     _sync(device)
@@ -136,7 +151,7 @@ def greedy_generate(model, tokenizer, prompt_ids, max_new_tokens, *, use_cache=T
         out = base(input_ids=torch.tensor([seq], device=device), use_cache=use_cache)
         passes += 1
         while True:
-            top2 = out.logits[0, -1].float().topk(2)
+            top2 = _no_eos(out.logits[0, -1].float(), ban).topk(2)
             t = int(top2.indices[0])
             margins.append(float(top2.values[0] - top2.values[1]))
             new.append(t)
@@ -216,7 +231,7 @@ def first_divergence(a, b):
 
 
 def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64, grouper=None,
-                         use_cache=True, amp=None, warmup=1, log_every=0, fp32_check_n=20):
+                         use_cache=True, amp=None, warmup=1, log_every=0, fp32_check_n=20, ignore_eos=False):
     """One INTERFACES §10 spec_decode entry per policy, over the same prompts. Greedy runs once.
 
     Besides outputs_match_greedy (every prompt identical), each entry reports match_rate (share of
@@ -224,7 +239,8 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
     the outputs diverged: tiny values mean low-precision rounding flipped a near-tie). With amp
     (e.g. fp16 autocast over fp32 weights, Kaggle T4), fp32_check re-runs the first fp32_check_n
     prompts with amp off; there the outputs must be identical, or the engine has a bug.
-    log_every > 0 prints progress every that many prompts (long Kaggle runs)."""
+    log_every > 0 prints progress every that many prompts (long Kaggle runs). ignore_eos masks EOS
+    for head 0 in greedy and in every policy (see generate)."""
     t_start = time.perf_counter()
 
     def progress(what, i):
@@ -233,10 +249,11 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
 
     model.eval()
     for p in prompts[:warmup]:                      # CUDA kernels / allocator warm-up, not timed
-        greedy_generate(model, tokenizer, p, 8, use_cache=use_cache, amp=amp)
+        greedy_generate(model, tokenizer, p, 8, use_cache=use_cache, amp=amp, ignore_eos=ignore_eos)
     greedy_ids, greedy_margins, greedy_tokens, greedy_secs = [], [], 0, 0.0
     for i, p in enumerate(prompts, 1):
-        ids, st = greedy_generate(model, tokenizer, p, max_new_tokens, use_cache=use_cache, amp=amp)
+        ids, st = greedy_generate(model, tokenizer, p, max_new_tokens, use_cache=use_cache, amp=amp,
+                                  ignore_eos=ignore_eos)
         progress("greedy", i)
         greedy_ids.append(ids)
         greedy_margins.append(st["margins"])
@@ -245,7 +262,8 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
     greedy_tps = greedy_tokens / greedy_secs if greedy_secs > 0 else 0.0
 
     check_prompts = prompts[:fp32_check_n] if amp is not None else []
-    check_ref = [greedy_generate(model, tokenizer, p, max_new_tokens, use_cache=use_cache) for p in check_prompts]
+    check_ref = [greedy_generate(model, tokenizer, p, max_new_tokens, use_cache=use_cache, ignore_eos=ignore_eos)
+                 for p in check_prompts]
 
     results = []
     k = model.num_heads
@@ -255,7 +273,8 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
         prop, acc = [0] * (k - 1), [0] * (k - 1)
         div_margins = []
         for i, (p, ref) in enumerate(zip(prompts, greedy_ids), 1):
-            ids, st = generate(model, tokenizer, p, max_new_tokens, policy, grouper, use_cache=use_cache, amp=amp)
+            ids, st = generate(model, tokenizer, p, max_new_tokens, policy, grouper, use_cache=use_cache, amp=amp,
+                               ignore_eos=ignore_eos)
             progress(policy.name, i)
             d = first_divergence(ids, ref)
             if d is None:
@@ -274,7 +293,7 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
             same, check_margins = 0, []
             for p, (ref, ref_st) in zip(check_prompts, check_ref):
                 d = first_divergence(generate(model, tokenizer, p, max_new_tokens, policy, grouper,
-                                              use_cache=use_cache)[0], ref)
+                                              use_cache=use_cache, ignore_eos=ignore_eos)[0], ref)
                 if d is None:
                     same += 1
                 elif d < len(ref_st["margins"]):
@@ -295,6 +314,8 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
             "fp32_check": fp32_check,
             "group_integrity": hits / spans if spans else None,
             "n_prompts": len(prompts),
+            "mean_new_tokens": tokens / len(prompts) if prompts else None,
+            "ignore_eos": bool(ignore_eos),
         })
     return results
 

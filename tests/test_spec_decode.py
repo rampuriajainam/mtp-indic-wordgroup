@@ -109,6 +109,56 @@ def test_max_new_tokens_and_eos():
     assert ids == [1, 2, 3, 4] == greedy_generate(model, tok, [0], 20)[0]
 
 
+def test_generation_runs_without_autograd():
+    """generate / greedy_generate must not build autograd graphs (slower and more memory = an
+    understated speed-up); evaluate.py opens no no_grad context of its own."""
+    model = CountingModel(num_heads=4, right=True)
+    seen = []
+    forward, base = model.forward, model.base_model
+
+    def spy_forward(*a, **kw):
+        seen.append(torch.is_grad_enabled())
+        return forward(*a, **kw)
+
+    def spy_base(*a, **kw):
+        seen.append(torch.is_grad_enabled())
+        return base(*a, **kw)
+
+    model.forward, model.base_model = spy_forward, spy_base
+    assert torch.is_grad_enabled()
+    generate(model, TOK, [0], 8, FixedK())
+    generate(model, TOK, [0], 8, FixedK(), ignore_eos=True)
+    greedy_generate(model, TOK, [0], 8)
+    assert seen and not any(seen)
+
+
+@pytest.mark.parametrize("use_cache", [True, False])
+def test_ignore_eos_runs_to_max_new_tokens(use_cache):
+    model = CountingModel(num_heads=4, right=True)
+    tok = SimpleNamespace(eos_token_id=4)  # 4 is masked: after 3 head 0 picks the next-best token (0)
+    ref, st = greedy_generate(model, tok, [0], 20, use_cache=use_cache, ignore_eos=True)
+    assert len(ref) == 20 and 4 not in ref and ref[:4] == [1, 2, 3, 0]
+    for policy in (FixedK(), ConfidenceCut(0.3)):
+        ids, gst = generate(model, tok, [0], 20, policy, use_cache=use_cache, ignore_eos=True)
+        assert ids == ref and gst["tokens"] == 20
+
+
+@pytest.mark.parametrize("use_cache", [True, False])
+def test_ignore_eos_identical_to_masked_greedy_real_model(tiny_model_dir, tmp_path, use_cache):
+    """EOS = the token greedy emits first, so without the mask every prompt stops after 1 token."""
+    model, tok = _tiny_model(tiny_model_dir, tmp_path, "resblock")
+    rng = random.Random(3)
+    for _ in range(10):
+        prompt = [rng.randrange(4, len(tok)) for _ in range(rng.randint(1, 8))]
+        eos_tok = SimpleNamespace(eos_token_id=greedy_generate(model, tok, prompt, 1)[0][0])
+        assert len(greedy_generate(model, eos_tok, prompt, 16, use_cache=use_cache)[0]) == 1
+        ref, _ = greedy_generate(model, eos_tok, prompt, 16, use_cache=use_cache, ignore_eos=True)
+        assert len(ref) == 16 and eos_tok.eos_token_id not in ref
+        for policy in (FixedK(), ConfidenceCut(0.3), GarbagePolicy()):
+            ids, _ = generate(model, eos_tok, prompt, 16, policy, use_cache=use_cache, ignore_eos=True)
+            assert ids == ref, policy.name
+
+
 # ----------------------------------------------------------------------------- policies
 
 def test_policies():
@@ -249,7 +299,8 @@ def test_evaluate_spec_decode_section10(tiny_model_dir, tmp_path, tiny_tok):
     assert [r["policy"] for r in res] == ["fixed_k", "confidence_cut"]
     for r in res:
         assert set(r) == {"policy", "mean_accepted_len", "accept_rate_per_head", "tokens_per_sec",
-                          "greedy_tokens_per_sec", "speedup", "outputs_match_greedy", "group_integrity", "n_prompts", "match_rate", "max_mismatch_margin", "fp32_check"}
+                          "greedy_tokens_per_sec", "speedup", "outputs_match_greedy", "group_integrity", "n_prompts", "match_rate", "max_mismatch_margin", "fp32_check",
+                          "mean_new_tokens", "ignore_eos"}
         assert r["outputs_match_greedy"] is True and r["n_prompts"] == 3
         assert len(r["accept_rate_per_head"]) == 3 and r["mean_accepted_len"] >= 1.0
 
