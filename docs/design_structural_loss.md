@@ -207,3 +207,20 @@ Oracle tree estimate on R2 (12.5k; heads' top-k vs head 0's greedy token on 100 
 - `pilot_sd_frozen`
 - `pilot_sd_frozen_L2`
 - `pilot_sd_frozen_S3mix`: self-distillation + our structural loss; do they stack?
+
+### Round 4 results (2026-10-10, commit 6a19ec5)
+
+Head 0 = the base model in every run (h0 2.8653 on IC eval in all four; R2ref's trained LoRA gets 2.8457). Acceptance as above, vs `pilot_frozen`:
+
+| run | mean accepted length | h1 / h2 / h3 acceptance | Δ accepted length [95% CI] |
+|---|---|---|---|
+| pilot_frozen | 1.290 | 24.6 / 4.4 / 0.5% | — |
+| **pilot_sd_frozen** | **1.511** | **34.9 / 11.8 / 5.6%** | **+0.221 [+0.174, +0.280]** |
+| pilot_sd_frozen_L2 | 1.523 | 35.3 / 12.3 / 6.0% | +0.234 [+0.187, +0.290] |
+| pilot_sd_frozen_S3mix | 1.494 | 35.2 / 10.9 / 4.4% | +0.205 [+0.160, +0.257] |
+
+1. **Lossless self-distillation works:** +0.22 tokens/step (+17%) with the verifier exactly the base model. About 60% of the unfrozen gain survives; the rest came from head 0 drifting toward its own text.
+2. **The structural loss does not stack** with self-distillation, and 2 ResBlocks add only ~0.01.
+3. Real-text top-1 of the heads drops slightly (they now model the base model, not the corpus). That is the intended trade.
+
+**Next: `Rsd`.** The same recipe at full length: 100k generated texts, 12.5k steps. `Rsd_s43` is a replicate with `data.shuffle` (a seeded order). With zero-init heads and a frozen backbone the seed alone changes nothing, so the replicate needs a new data order.
