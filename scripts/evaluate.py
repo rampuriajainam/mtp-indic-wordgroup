@@ -129,20 +129,22 @@ def make_policies(names, tau):
 def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT / "results", dump_tokens=False,
                  spec_decode=False, policies=("fixed_k", "confidence_cut"), tau=0.5, spec_n=200, max_new_tokens=64,
                  fp32_check_n=20,
-                 heads=True, device="auto", batch_size=None, n=None, texts_fn=load_texts):
+                 heads=True, bench_verify=False, device="auto", batch_size=None, n=None, texts_fn=load_texts):
     """Evaluate one run on each dataset; returns {dataset: path of eval_{dataset}.json}.
     heads=False skips the per-head section (e.g. a session that only adds spec_decode)."""
+    import torch
+
     from mtp.data.collate import Collator
     from mtp.device import autocast_ctx, uses_fp16_autocast
     from mtp.eval.head_accuracy import evaluate_heads
-    from mtp.eval.spec_decode import evaluate_spec_decode, make_prompts
+    from mtp.eval.spec_decode import bench_verify_pass, evaluate_spec_decode, make_prompts
     from mtp.model.checkpoint import load_run
 
     unknown = [d for d in datasets if d not in DATASETS]
     if unknown:
         raise SystemExit(f"unknown dataset(s) {unknown}; choose from {sorted(DATASETS)}")
-    if not heads and not spec_decode:
-        raise SystemExit("nothing to do: --no_heads without --spec_decode")
+    if not heads and not spec_decode and not bench_verify:
+        raise SystemExit("nothing to do: --no_heads without --spec_decode or --bench_verify")
     draft_policies = make_policies(policies, tau) if spec_decode else []
 
     model, tokenizer, cfg = load_run(run_dir, device=device, step=step)
@@ -158,6 +160,23 @@ def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT /
         draft_policies = []
 
     written = {}
+    if bench_verify:   # once per run: verify-pass cost vs positions scored (chain drafts / tree nodes)
+        texts = texts_fn(datasets[0], cfg, n)
+        prefix = [t for text in texts for t in tokenizer(text)["input_ids"]][:64]
+        amp_b = (lambda: autocast_ctx(cfg)) if uses_fp16_autocast(cfg) else None
+        bench = {"run_name": cfg.run_name, "step": model.loaded_step, "device": str(device),
+                 "gpu": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
+                 "fp16_autocast": amp_b is not None, **bench_verify_pass(model, prefix, amp=amp_b)}
+        path = Path(out_dir) / cfg.run_name / "bench_verify.json"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(bench, indent=2) + "\n", encoding="utf-8")
+        written["bench_verify"] = path
+        print(f"\nverify-pass cost ({bench['gpu'] or device}, prefix {bench['prefix_len']} tokens): "
+              f"greedy 1-token pass {bench['greedy_ms']:.1f} ms")
+        for b in bench["passes"]:
+            print(f"  {b['positions']:>3} positions: {b['ms']:7.1f} ms  (x{b['x_greedy']:.2f} greedy, p90 {b['ms_p90']:.1f})")
+    if not heads and not spec_decode:
+        return written
     for name in datasets:
         t0 = time.perf_counter()
         texts = texts_fn(name, cfg, n)
@@ -204,6 +223,8 @@ def main(argv=None):
     ap.add_argument("--tau", type=float, default=0.5, help="confidence_cut threshold")
     ap.add_argument("--spec_n", type=int, default=200, help="prompts per dataset (first 8-16 words of a sentence)")
     ap.add_argument("--max_new_tokens", type=int, default=64)
+    ap.add_argument("--bench_verify", action="store_true",
+                    help="time one verify pass vs positions scored (1..64) -> results/{run}/bench_verify.json")
     ap.add_argument("--fp32_check_n", type=int, default=20,
                     help="under fp16 autocast, re-run this many prompts in fp32: outputs must equal greedy")
     ap.add_argument("--device", default="auto")
@@ -214,7 +235,7 @@ def main(argv=None):
     evaluate_run(args.run_dir, args.datasets, step=args.step, grouper_name=args.grouper, out_dir=args.out,
                  dump_tokens=args.dump_tokens, spec_decode=args.spec_decode, policies=args.policies, tau=args.tau,
                  spec_n=args.spec_n, max_new_tokens=args.max_new_tokens, fp32_check_n=args.fp32_check_n,
-                 heads=not args.no_heads,
+                 heads=not args.no_heads, bench_verify=args.bench_verify,
                  device=args.device, batch_size=args.batch_size, n=args.n)
 
 
