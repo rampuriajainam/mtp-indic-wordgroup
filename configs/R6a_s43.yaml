@@ -1,0 +1,22 @@
+# R6a: control for R3. Identical (S23_mix, lambdas, seed) except data.grouper: random (JI-4). Its logged in-group numbers use the RANDOM groups: evaluate it with --grouper hi_rules_v0 to compare with R3. -- seed 43 replicate (JN-11), shuffled data order
+# Run matrix: docs/plan/README.md §6. Fields: INTERFACES §6 (+ optional: head_layers, optim.grad_accum,
+# optim.weight_decay, data.eval_n, weighting.head_decay, log_every). TBD = decided later; train.py fails loudly on it.
+run_name: R6a_hi_k4_struct_random_s43
+lang: hi
+model_name: LingoIITGN/ganga-1b
+num_heads: 4
+head_type: resblock
+head_layers: 1
+head_backbone_grad: 0.1   # extra heads send 10% of their gradient into LoRA (2k-step pilot: head 0 +0.011 vs R0)
+lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}
+optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500, grad_accum: 1, weight_decay: 0.01}
+data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: random, max_length: 128, eval_n: 100, shuffle: true}
+losses:
+  structural: {enabled: true, variant: S23_mix, weight: 1.0, lambda_s2: 0.1, lambda_s3: 0.25, lambda_s3_all: 0.25, s3_teacher: chain}  # JN-5 pilots: design note 5
+  contrastive: {enabled: false, weight: 0.05, temperature: 0.1}
+weighting: {scheme: fixed, head_decay: 0.8}
+log_every: 20
+eval_every: 250
+save_every: 500
+seed: 43
+dtype: auto
