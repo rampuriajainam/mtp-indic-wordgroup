@@ -147,3 +147,103 @@ Round 1 leaves two doubts for R3 = S23 with the chain teacher. First, its guard 
 | `pilot_S3mix_l025` | S3_mix: in-group λ 0.25 + all-pairs λ 0.25, chain (guard-safer) |
 
 Same rule as §3. A mix wins only if it keeps the in-group gain of S3chain **and** raises mean top-1 above R2ref on both IC and FLORES, inside the guard.
+
+Results (step 2000, re-evaluated; differences vs pilot_R2ref):
+
+| run | guard (≤ +0.020) | h1 in-group IC / FLORES | mean top-1 h1-3 IC / FLORES |
+|---|---|---|---|
+| pilot_S23chain | +0.018 ✓ | +1.8 / +1.3 | −0.11 / +0.09 |
+| pilot_S3chain_l025 | +0.008 ✓ | +1.4 / +1.0 | +0.07 / +0.19 |
+| pilot_S3mix | +0.023 ✗ | +1.9 / +1.1 | +0.15 / +0.20 |
+| **pilot_S3mix_l025** | +0.013 ✓ | +1.3 / +0.9 | +0.28 / **+0.31** |
+
+S3mix_l025 is the only run that improves both metrics on both sets, so the two gains do add up. **R3 = S23_mix, λ_S3 0.25, λ_S3_all 0.25, chain teacher** (S2 is free: S23chain = S3chain on every number).
+
+### Does it matter for speed? Acceptance and a paired bootstrap (2026-10-10)
+
+Self-speculative decoding (FixedK, k = 4) on 100 prompts from IndicCorp eval sentences (FLORES is kept for the final numbers), plus a paired bootstrap (2,000 resamples over the same 500 sentences / 100 prompts). Differences vs pilot_R2ref, with 95% CIs; ✓ = the CI excludes 0.
+
+| run | h1 in-group top-1 | mean top-1 h1-3 | mean accepted length | h1 acceptance |
+|---|---|---|---|---|
+| pilot_R2ref (absolute) | 19.8% | 7.98% | **1.324** | 26.0% |
+| pilot_S3all | +0.2 [−0.5, +0.9] | +0.38 ✓ | +0.023 ✓ | +2.7 ✓ |
+| pilot_S3chain_l025 | +1.4 ✓ | +0.07 | −0.023 | −0.6 |
+| pilot_S3mix_l025 | +1.3 ✓ | +0.29 ✓ | −0.014 | +0.4 |
+| pilot_S23chain | +1.8 ✓ | −0.10 | −0.019 | +0.1 |
+
+1. The in-group gain of the masked variants is real (it holds on the same sentences; seed-to-seed variance is still unmeasured).
+2. It does not turn into acceptance. Only S3all improves acceptance, and only slightly.
+3. **Every variant drafts about 1.32 tokens per step.** No structural-loss choice changes that by more than ±0.02. (An R2 speed-up of 0.72-0.87× measured at this point was wrong: another job shared the GPU. Re-measured alone it is 1.24× FixedK; see Rsd below.) The structural loss is a second-order choice; the bottleneck is how good the drafters are.
+
+**Next levers (run with R3, 2,000-step pilots, judged on acceptance):**
+- **Self-distillation (`pilot_sd`):** train on the base model's own greedy continuations of training prompts (`scripts/gen_selfdistill.py`, `data.train_file`). On that text head d's CE target is head 0's greedy token, which is exactly what acceptance measures (Medusa-2). S3all, the only variant that moved acceptance, is a weak form of this.
+- **Head capacity (`pilot_R2ref_L2`):** 2 ResBlocks per head.
+- **Both (`pilot_sd_L2`).**
+- Not yet: heads conditioned on the previous draft (Hydra-style) and tree / top-k verification. Both need engine changes (OM-6). Top-5 accuracy of h1 is about 2× its top-1, so tree drafting is the largest untried lever.
+
+### Round 3 results (2026-10-10, commit 75b1db5): R3 and the drafter levers
+
+Acceptance on 100 IndicCorp-eval prompts (FixedK, k = 4) + paired bootstrap, as above.
+
+| run | mean accepted length | h1 / h2 / h3 acceptance | h0 on IC eval |
+|---|---|---|---|
+| pilot_R2ref | 1.324 | 26.0 / 5.5 / 1.5% | 2.846 |
+| pilot_R2ref_L2 (2 ResBlocks) | 1.330 (+0.006, n.s.) | 26.4 / 5.5 / 1.6% | 2.844 |
+| **pilot_sd** (self-distillation) | **1.677 (+0.353 ✓)** | **44.2 / 17.3 / 7.6%** | **3.167 ✗ (+0.32)** |
+| **pilot_sd_L2** | **1.714 (+0.391 ✓)** | **45.9 / 18.9 / 8.1%** | 3.170 ✗ |
+| R2 (12.5k) | 1.370 | 30.1 / 6.1 / 1.4% | |
+| R3 (12.5k, S23_mix) | 1.380 (+0.010, n.s.) | 30.9 / 6.3 / 1.5% | |
+
+R3 vs R2 at 12.5k: h1 in-group top-1 **+2.3 ✓** and mean top-1 h1-3 **+0.34 ✓**, acceptance unchanged. Same picture as the pilots.
+
+1. **Self-distillation is the lever:** about 15× the effect of any structural variant on tokens/step.
+2. **But head 0 drifted:** LoRA trained on the model's own greedy text, so h0 got 0.32 worse on real text. Some of the acceptance gain may come from a more predictable verifier, not better heads.
+3. **Capacity is not the bottleneck** (L2 ≈ L1).
+
+Oracle tree estimate on R2 (12.5k; heads' top-k vs head 0's greedy token on 100 prompts): tokens/step is 1.46 for a chain, 1.78 for a (3,2,1) tree (15 nodes), 1.88 for (5,2,1) (25 nodes) and 2.07 for (10,3,1) (70 nodes). Head 1's top-1 agrees with head 0's greedy token 34.6% of the time (vs 15% with the real text).
+
+**Round 4: protect the verifier.** `freeze_backbone: true` freezes LoRA, so only the heads train (Medusa-1) and head 0 = the base model exactly (lossless by construction). The heads then learn from text the base model itself generated, which is exactly the acceptance target.
+- `pilot_frozen`: real text (control)
+- `pilot_sd_frozen`
+- `pilot_sd_frozen_L2`
+- `pilot_sd_frozen_S3mix`: self-distillation + our structural loss; do they stack?
+
+### Round 4 results (2026-10-10, commit 6a19ec5)
+
+Head 0 = the base model in every run (h0 2.8653 on IC eval in all four; R2ref's trained LoRA gets 2.8457). Acceptance as above, vs `pilot_frozen`:
+
+| run | mean accepted length | h1 / h2 / h3 acceptance | Δ accepted length [95% CI] |
+|---|---|---|---|
+| pilot_frozen | 1.290 | 24.6 / 4.4 / 0.5% | — |
+| **pilot_sd_frozen** | **1.511** | **34.9 / 11.8 / 5.6%** | **+0.221 [+0.174, +0.280]** |
+| pilot_sd_frozen_L2 | 1.523 | 35.3 / 12.3 / 6.0% | +0.234 [+0.187, +0.290] |
+| pilot_sd_frozen_S3mix | 1.494 | 35.2 / 10.9 / 4.4% | +0.205 [+0.160, +0.257] |
+
+1. **Lossless self-distillation works:** +0.22 tokens/step (+17%) with the verifier exactly the base model. About 60% of the unfrozen gain survives; the rest came from head 0 drifting toward its own text.
+2. **The structural loss does not stack** with self-distillation, and 2 ResBlocks add only ~0.01.
+3. Real-text top-1 of the heads drops slightly (they now model the base model, not the corpus). That is the intended trade.
+
+**Next: `Rsd`.** The same recipe at full length: 100k generated texts, 12.5k steps. `Rsd_s43` is a replicate with `data.shuffle` (a seeded order). With zero-init heads and a frozen backbone the seed alone changes nothing, so the replicate needs a new data order.
+
+### Rsd results (2026-10-10, commit a4f1ff4): the full-length self-distillation run
+
+Acceptance on 100 IndicCorp-eval prompts + paired bootstrap vs R2, all at 12.5k steps:
+
+| run | mean accepted length | h1 / h2 / h3 acceptance | h1 in-group top-1 (real text) |
+|---|---|---|---|
+| R2 | 1.370 | 30.1 / 6.1 / 1.4% | 23.4% |
+| R3 (S23_mix) | 1.380 (+0.010 [−0.013, +0.033]) | 30.9 / 6.3 / 1.5% | +2.3 ✓ |
+| **Rsd** | **1.649 (+0.279 [+0.215, +0.353])** | **41.0 / 17.1 / 8.2%** | −3.4 ✓ |
+| **Rsd_s43** (replicate) | **1.664 (+0.294 [+0.233, +0.366])** | 41.6 / 18.0 / 8.3% | −3.3 ✓ |
+
+Wall-clock speed-up over greedy (fp32, RTX 4060, first 20 flores_hi prompts, both models measured alone, back to back; outputs match greedy exactly in both):
+
+| run | tokens/step | FixedK | ConfidenceCut (τ 0.5) |
+|---|---|---|---|
+| R2 | 1.34 | 1.24× | 0.97× |
+| **Rsd** | 1.61 | **1.53×** | 1.31× |
+
+1. **Frozen self-distillation is the method's main gain:** +0.28 tokens/step and +23% wall-clock over R2. It is lossless (head 0 = the base model) and reproducible (the replicates agree within 0.015).
+2. 2k → 12.5k steps took it from 1.51 to 1.65 tokens/step. More data / steps may help further.
+3. The heads get worse at predicting real text and better at predicting the model itself. For speculative decoding only the second matters.
+4. **Word groups:** the structural losses lift in-group accuracy (R3 +2.3) but not acceptance, and they do not stack with self-distillation. Where word groups can still matter is in **how drafts are spent**: GroupAware and a group-aware draft tree (oracle: a (3,2,1) tree takes R2 from 1.46 to 1.78 tokens/step). That is the next experiment on the method side.

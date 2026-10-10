@@ -154,6 +154,42 @@ def test_grad_accum_and_data_wraparound(tmp_path):
     assert (tmp_path / "run" / "step_8" / "optim.pt").exists()
 
 
+def test_freeze_backbone_trains_only_the_extra_heads(tmp_path):
+    cfg = make_cfg(tmp_path)
+    cfg.freeze_backbone = True
+    train_mod.seed_everything(cfg.seed)
+    model, tok = make_model(cfg)
+    before = {n: p.detach().clone() for n, p in model.named_parameters()}
+    train_mod.train(cfg, model, tok, make_examples(20), make_examples(5, seed=1), tmp_path / "run")
+    changed = {n for n, p in model.named_parameters() if not torch.equal(p.detach(), before[n])}
+    assert changed and all(n.startswith("extra_heads.") for n in changed)
+
+
+def test_train_file_replaces_corpus(tmp_path, monkeypatch):
+    """data.train_file (self-distillation text) is read instead of IndicCorp train; eval still uses the corpus."""
+    f = tmp_path / "sd.jsonl"
+    f.write_text("\n".join(json.dumps({"text": f"generated {i}"}) for i in range(100)) + "\n", encoding="utf-8")
+    cfg = make_cfg(tmp_path)
+    cfg.data.train_file, cfg.data.grouper = str(f), None
+    calls = []
+    monkeypatch.setattr(train_mod, "load_split", lambda lang, split, n=None: calls.append(split) or ["eval text"])
+
+    class Tok:
+        def __call__(self, texts, truncation, max_length):
+            ids = [[1] + [ord(c) for c in t] for t in texts]  # distinct per text
+            return {"input_ids": ids, "attention_mask": [[1] * len(i) for i in ids]}
+
+    train, ev = train_mod.build_data(cfg, Tok())
+    assert calls == ["eval_small"] and len(train) == min(100, train_mod.num_train_examples(cfg))
+    assert train[0]["input_ids"] == [1] + [ord(c) for c in "generated 0"] and len(ev) == 1
+
+    cfg.data.shuffle = True  # seeded order: same seed -> same order, other seed -> other order
+    a = [e["input_ids"] for e in train_mod.build_data(cfg, Tok())[0]]
+    assert a == [e["input_ids"] for e in train_mod.build_data(cfg, Tok())[0]] and a != [e["input_ids"] for e in train]
+    cfg.seed = cfg.seed + 1
+    assert a != [e["input_ids"] for e in train_mod.build_data(cfg, Tok())[0]]
+
+
 def test_group_losses_need_cache(tmp_path):
     cfg = make_cfg(tmp_path)
     cfg.losses.structural.enabled = True

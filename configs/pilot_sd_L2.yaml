@@ -1,18 +1,18 @@
-# R3: method part 1: structural loss, fixed weighting
+# pilot_sd_L2: self-distillation + 2 ResBlocks per head
 # Run matrix: docs/plan/README.md §6. Fields: INTERFACES §6 (+ optional: head_layers, optim.grad_accum,
 # optim.weight_decay, data.eval_n, weighting.head_decay, log_every). TBD = decided later; train.py fails loudly on it.
-run_name: R3_hi_k4_struct
+run_name: pilot_sd_L2
 lang: hi
 model_name: LingoIITGN/ganga-1b
 num_heads: 4
 head_type: resblock
-head_layers: 1
+head_layers: 2
 head_backbone_grad: 0.1   # extra heads send 10% of their gradient into LoRA (2k-step pilot: head 0 +0.011 vs R0)
 lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}
-optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500, grad_accum: 1, weight_decay: 0.01}
-data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: hi_rules_v0, max_length: 128, eval_n: 100}  # -> hi_rules_v1 when JI-1 lands
+optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 2000, grad_accum: 1, weight_decay: 0.01}
+data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: hi_rules_v0, max_length: 128, eval_split: eval, eval_n: 1000, train_file: /kaggle/working/sd/hi_sd.jsonl}  # -> hi_rules_v1 when JI-1 lands
 losses:
-  structural: {enabled: true, variant: S23_mix, weight: 1.0, lambda_s2: 0.1, lambda_s3: 0.25, lambda_s3_all: 0.25, s3_teacher: chain}  # JN-5 pilots: design note 5
+  structural: {enabled: false, variant: null, weight: 1.0}
   contrastive: {enabled: false, weight: 0.05, temperature: 0.1}
 weighting: {scheme: fixed, head_decay: 0.8}
 log_every: 20

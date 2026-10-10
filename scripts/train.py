@@ -135,7 +135,17 @@ def build_data(cfg, tokenizer):
         enc = tokenizer(texts, truncation=True, max_length=max_len)
         return [{"input_ids": i, "attention_mask": m} for i, m in zip(enc["input_ids"], enc["attention_mask"])]
 
-    train_texts = load_split(lang, "train", num_train_examples(cfg))
+    train_file = cfg_get(cfg, "data.train_file")
+    if train_file:  # e.g. self-distillation text from scripts/gen_selfdistill.py (one {"text"} per line)
+        with open(train_file, encoding="utf-8") as f:
+            train_texts = [json.loads(line)["text"] for line in f if line.strip()][:num_train_examples(cfg)]
+        print(f"data: train text from {train_file}")
+    else:
+        train_texts = load_split(lang, "train", num_train_examples(cfg))
+    if cfg_get(cfg, "data.shuffle", False):
+        # A seeded order. Without it the seed may change nothing at all: zero-init heads and a frozen
+        # backbone make training deterministic in the data order, so a seed replicate needs a new order.
+        random.Random(cfg.seed).shuffle(train_texts)
     eval_texts = load_split(lang, cfg_get(cfg, "data.eval_split", "eval_small"))[:eval_n]
     labelled = f"labelled with {grouper_name}" if grouper else f"no grouper ({grouper_name!r} not registered)"
     print(f"data: raw IndicCorp text, {len(train_texts)} train / {len(eval_texts)} eval sentences, {labelled}")
@@ -267,6 +277,11 @@ def train(cfg, model, tokenizer, train_examples, eval_examples, run_dir, resume=
         dwa_temperature=cfg_get(cfg, "weighting.dwa_temperature", 2.0),
     ).to(device)
 
+    if cfg_get(cfg, "freeze_backbone", False):
+        # Medusa-1 style: only the extra heads (and probes) train; head 0 stays the base model exactly,
+        # so heads can learn from self-distillation text without the verifier drifting toward it.
+        for p in model.base_model.parameters():
+            p.requires_grad_(False)
     model_params = [p for p in model.parameters() if p.requires_grad]
     weighting_params = [p for p in weighting.parameters() if p.requires_grad]
     groups = [{"params": model_params, "weight_decay": cfg_get(cfg, "optim.weight_decay", 0.01)}]
