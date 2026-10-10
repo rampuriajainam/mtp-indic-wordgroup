@@ -154,6 +154,17 @@ def test_grad_accum_and_data_wraparound(tmp_path):
     assert (tmp_path / "run" / "step_8" / "optim.pt").exists()
 
 
+def test_freeze_backbone_trains_only_the_extra_heads(tmp_path):
+    cfg = make_cfg(tmp_path)
+    cfg.freeze_backbone = True
+    train_mod.seed_everything(cfg.seed)
+    model, tok = make_model(cfg)
+    before = {n: p.detach().clone() for n, p in model.named_parameters()}
+    train_mod.train(cfg, model, tok, make_examples(20), make_examples(5, seed=1), tmp_path / "run")
+    changed = {n for n, p in model.named_parameters() if not torch.equal(p.detach(), before[n])}
+    assert changed and all(n.startswith("extra_heads.") for n in changed)
+
+
 def test_train_file_replaces_corpus(tmp_path, monkeypatch):
     """data.train_file (self-distillation text) is read instead of IndicCorp train; eval still uses the corpus."""
     f = tmp_path / "sd.jsonl"

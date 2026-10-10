@@ -273,6 +273,11 @@ def train(cfg, model, tokenizer, train_examples, eval_examples, run_dir, resume=
         dwa_temperature=cfg_get(cfg, "weighting.dwa_temperature", 2.0),
     ).to(device)
 
+    if cfg_get(cfg, "freeze_backbone", False):
+        # Medusa-1 style: only the extra heads (and probes) train; head 0 stays the base model exactly,
+        # so heads can learn from self-distillation text without the verifier drifting toward it.
+        for p in model.base_model.parameters():
+            p.requires_grad_(False)
     model_params = [p for p in model.parameters() if p.requires_grad]
     weighting_params = [p for p in weighting.parameters() if p.requires_grad]
     groups = [{"params": model_params, "weight_decay": cfg_get(cfg, "optim.weight_decay", 0.01)}]

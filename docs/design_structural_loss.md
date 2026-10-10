@@ -180,3 +180,30 @@ Self-speculative decoding (FixedK, k = 4) on 100 prompts from IndicCorp eval sen
 - **Head capacity (`pilot_R2ref_L2`):** 2 ResBlocks per head.
 - **Both (`pilot_sd_L2`).**
 - Not yet: heads conditioned on the previous draft (Hydra-style) and tree / top-k verification. Both need engine changes (OM-6). Top-5 accuracy of h1 is about 2× its top-1, so tree drafting is the largest untried lever.
+
+### Round 3 results (2026-10-10, commit 75b1db5): R3 and the drafter levers
+
+Acceptance on 100 IndicCorp-eval prompts (FixedK, k = 4) + paired bootstrap, as above.
+
+| run | mean accepted length | h1 / h2 / h3 acceptance | h0 on IC eval |
+|---|---|---|---|
+| pilot_R2ref | 1.324 | 26.0 / 5.5 / 1.5% | 2.846 |
+| pilot_R2ref_L2 (2 ResBlocks) | 1.330 (+0.006, n.s.) | 26.4 / 5.5 / 1.6% | 2.844 |
+| **pilot_sd** (self-distillation) | **1.677 (+0.353 ✓)** | **44.2 / 17.3 / 7.6%** | **3.167 ✗ (+0.32)** |
+| **pilot_sd_L2** | **1.714 (+0.391 ✓)** | **45.9 / 18.9 / 8.1%** | 3.170 ✗ |
+| R2 (12.5k) | 1.370 | 30.1 / 6.1 / 1.4% | |
+| R3 (12.5k, S23_mix) | 1.380 (+0.010, n.s.) | 30.9 / 6.3 / 1.5% | |
+
+R3 vs R2 at 12.5k: h1 in-group top-1 **+2.3 ✓** and mean top-1 h1-3 **+0.34 ✓**, acceptance unchanged. Same picture as the pilots.
+
+1. **Self-distillation is the lever:** about 15× the effect of any structural variant on tokens/step.
+2. **But head 0 drifted:** LoRA trained on the model's own greedy text, so h0 got 0.32 worse on real text. Some of the acceptance gain may come from a more predictable verifier, not better heads.
+3. **Capacity is not the bottleneck** (L2 ≈ L1).
+
+Oracle tree estimate on R2 (12.5k; heads' top-k vs head 0's greedy token on 100 prompts): tokens/step is 1.46 for a chain, 1.78 for a (3,2,1) tree (15 nodes), 1.88 for (5,2,1) (25 nodes) and 2.07 for (10,3,1) (70 nodes). Head 1's top-1 agrees with head 0's greedy token 34.6% of the time (vs 15% with the real text).
+
+**Round 4: protect the verifier.** `freeze_backbone: true` freezes LoRA, so only the heads train (Medusa-1) and head 0 = the base model exactly (lossless by construction). The heads then learn from text the base model itself generated, which is exactly the acceptance target.
+- `pilot_frozen`: real text (control)
+- `pilot_sd_frozen`
+- `pilot_sd_frozen_L2`
+- `pilot_sd_frozen_S3mix`: self-distillation + our structural loss; do they stack?
