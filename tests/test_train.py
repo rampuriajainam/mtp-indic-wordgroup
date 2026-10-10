@@ -277,3 +277,22 @@ def test_configs_load(path):
         assert hasattr(cfg, field), field
     assert cfg.optim.lr == 2e-4 and cfg.optim.batch_size == 8
     assert cfg.lora.r == 8 and list(cfg.lora.targets) == ["q_proj", "v_proj"]
+
+
+def test_cache_path_shuffle_matches_raw_order(tmp_path):
+    """data.shuffle on a boundary cache gives the same seeded order as on raw text (seed replicates)."""
+    import random
+
+    from datasets import Dataset
+
+    cfg = make_cfg(tmp_path)
+    cfg.data.cache_dir, cfg.data.grouper, cfg.data.shuffle, cfg.seed = str(tmp_path / "cache"), "g", True, 43
+    n = train_mod.num_train_examples(cfg)
+    rows = {"input_ids": [[i + 3, 4] for i in range(n + 5)], "attention_mask": [[1, 1]] * (n + 5),
+            "group_start": [[1, 0]] * (n + 5), "group_id": [[0, 0]] * (n + 5)}
+    for split in ("train", "eval"):
+        Dataset.from_dict(rows).save_to_disk(str(tmp_path / "cache" / f"hi_g_{split}"))
+    train, _ = train_mod.build_data(cfg, tokenizer=None)
+    order = list(range(n))
+    random.Random(43).shuffle(order)
+    assert [r["input_ids"][0] - 3 for r in train] == order
