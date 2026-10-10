@@ -360,3 +360,40 @@ Verify-pass cost (`bench_verify`, ms, × greedy pass of 35.3-35.4 ms):
 - **Tree outlook:** with Jainam's real/offline correction (0.86 k4, 0.82 k6), the n64 trees give ≈ 2.38 tokens/step ÷ 1.30 ≈ ×1.83 for k4 and ≈ 2.41 ÷ 1.44 ≈ ×1.67 for k6. So **k4 is the better tree base on T4**, unless `generate_tree()` shows the deep nodes are accepted more than the oracle predicts.
 - k6 h4/h5 in-group numbers rest on 58 / 26 targets: ignore them.
 
+## Marathi: R10 / R10a / Rsd_mr (OM-8, official eval)
+
+Step 12500, Kaggle T4, `--grouper mr_rules_v1` for all runs (R10a's config says `random_mr_v1`), IndicCorp mr eval + FLORES mar_Deva, 200 prompts. In-group target counts match R9 (h1 3,931 / 5,255). Rsd_mr and Rsd_mr_soft are frozen Misal-instruct, evaluated with `ignore_eos` (#46): 64.0 tokens per prompt. R9 and R10 average ~63.
+
+In-group top-1, h1 / h2 / h3:
+
+| run | IndicCorp mr | FLORES mr | h0 loss IndicCorp / FLORES |
+|---|---|---|---|
+| R9 (plain MTP) | 28.3 / 17.4 / 11.7 | 16.2 / 8.2 / 8.1 | 4.258 / 4.905 |
+| R10 (mr_rules_v1) | 30.5 / 18.6 / 13.3 | 18.5 / 10.8 / 10.1 | 4.288 / 4.953 |
+| R10a (random_mr_v1) | 30.9 / 18.8 / 12.6 | 18.5 / 10.4 / 10.9 | 4.287 / 4.953 |
+| Rsd_mr | 22.2 / 11.7 / 8.1 | 12.6 / 5.5 / 5.4 | 4.890 / 5.555 (= Misal-instruct) |
+
+Decoding (FixedK; ConfidenceCut in brackets for GI):
+
+| run | dataset | tokens/step | accept h1 / h2 / h3 | speed-up (tok/s) | GI fixed_k (CC) | fp32 re-check |
+|---|---|---|---|---|---|---|
+| R9 | indiccorp_eval | 1.31 | 24.4 / 6.0 / 1.2% | ×1.07 (24.4) | 77.3 (84.9) | 20/20 |
+| R10 | indiccorp_eval | 1.34 | 26.6 / 6.7 / 1.2% | ×1.10 (24.7) | 81.1 (86.4) | 20/20 |
+| R10a | indiccorp_eval | 1.35 | 27.1 / 7.1 / 1.3% | ×1.08 (24.8) | 80.8 (83.9) | 20/20 |
+| **Rsd_mr** | indiccorp_eval | **1.53** | 33.6 / 13.3 / 6.9% | **×1.25** (28.0) | 69.6 (67.3) | 20/20 |
+| Rsd_mr_soft | indiccorp_eval | 1.52 | 34.0 / 12.4 / 6.3% | ×1.24 (27.5) | 67.8 (63.6) | 20/20 |
+| R9 | flores_mr | 1.30 | 23.8 / 5.5 / 1.0% | ×1.05 (24.1) | 79.4 (78.1) | 20/20 |
+| R10 | flores_mr | 1.31 | 25.0 / 5.8 / 0.7% | ×1.07 (24.1) | 79.1 (87.6) | 20/20 |
+| R10a | flores_mr | 1.30 | 24.7 / 4.8 / 0.7% | ×1.05 (23.8) | 77.6 (85.4) | 20/20 |
+| **Rsd_mr** | flores_mr | **1.46** | 30.8 / 11.5 / 5.1% | **×1.20** (26.8) | 69.6 (64.4) | 20/20 |
+| Rsd_mr_soft | flores_mr | 1.46 | 31.2 / 10.8 / 4.6% | ×1.20 (26.4) | 67.0 (62.4) | 20/20 |
+
+Greedy: 22.1-22.9 tok/s.
+
+- **The structural loss raises in-group accuracy in Marathi too, and random groups give the same gain** (R10 = R10a within ±0.8 at every head). This matches Jainam's bootstrap on #39 and Hindi's two-seed result.
+- **GI leans towards linguistic groups, but only slightly:** R10 − R10a = +0.3 / +1.5 (FixedK) and +2.5 / +2.2 (CC). That's one seed with no CI. It points the same way as Hindi (R3 > R6a in 8 of 8 cells), with smaller differences.
+- **Self-distillation transfers to Marathi:** Rsd_mr reaches 1.53 / 1.46 tokens/step, ×1.25 / ×1.20, vs R9's ×1.07 / ×1.05. It matches Jainam's masked check (1.539). It speeds up Misal-instruct as is, whose head 0 is 0.63 nats weaker on IndicCorp than the LoRA-tuned R9.
+- **Rsd_mr's GI is lower (~68-70%).** Its accepted spans come from Misal-instruct's own text and its heads were never trained on word groups, so its spans line up with `mr_rules_v1` boundaries less often. This is a different model from R9/R10, so the GI numbers aren't comparable across that line.
+- **Soft labels = hard labels** in Marathi too (negative row).
+- These were run before #55, so they have no per-prompt GI.
+
