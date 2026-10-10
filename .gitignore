@@ -8,6 +8,8 @@ lora_test_checkpoint/
 training_log*.txt
 runs/
 boundary_cache/
+cache_trial/
+mtp-boundary-cache.zip
 wandb/
 CLAUDE.local.md
 results/**/tokens_*.jsonl
