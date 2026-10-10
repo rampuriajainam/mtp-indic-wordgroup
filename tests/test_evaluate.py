@@ -163,7 +163,7 @@ def test_flores_alias_and_per_language_grouper(evaluate, tiny_run, tmp_path):
 
 SPEC_KEYS = {"policy", "mean_accepted_len", "accept_rate_per_head", "tokens_per_sec", "greedy_tokens_per_sec",
              "speedup", "outputs_match_greedy", "group_integrity", "n_prompts", "match_rate", "max_mismatch_margin", "fp32_check",
-             "mean_new_tokens", "ignore_eos"}
+             "mean_new_tokens", "ignore_eos", "per_prompt"}
 LONG = ["मैं कल बाजार जा रहा था। वह घर से आया था भारत एक विशाल और विविधतापूर्ण देश है।",
         "बच्चे पार्क में खेल रहे हैं। के बारे बात कर वह घर से आया था मैं कल बाजार जा रहा था।"]
 

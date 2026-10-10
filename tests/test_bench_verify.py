@@ -20,11 +20,11 @@ def _load(name, path):
     return mod
 
 
-def _tiny_model(tiny_model_dir, tmp_path):
+def _tiny_model(tiny_model_dir, tmp_path, head_type="resblock"):
     from mtp.model.build import build_model
 
     d = yaml.safe_load((ROOT / "configs" / "R2.yaml").read_text(encoding="utf-8"))
-    d.update(model_name=str(tiny_model_dir), num_heads=3, dtype="fp32")
+    d.update(model_name=str(tiny_model_dir), num_heads=3, dtype="fp32", head_type=head_type)
     (tmp_path / "c.yaml").write_text(yaml.safe_dump(d), encoding="utf-8")
     model, tok = build_model(load_config(tmp_path / "c.yaml"), "cpu")
     return model.eval(), tok
@@ -78,3 +78,30 @@ def test_evaluate_bench_verify_only(tmp_path, tiny_model_dir, tiny_tok):
     assert bench["run_name"] == "tiny_bench" and bench["fp16_autocast"] is False and bench["gpu"] is None
     assert [p["positions"] for p in bench["passes"]] == [1, 4, 8, 16, 25, 32, 64]
     assert not (out / "tiny_bench" / "eval_indiccorp_eval.json").exists()
+
+
+def test_bench_verify_seq_heads_verify_with_head0_only(tiny_model_dir, tmp_path, monkeypatch):
+    """Sequential heads: verify passes skip the extra heads (as generate() does) and the draft chain
+    is timed separately."""
+    from mtp.eval import spec_decode as sd
+
+    model, tok = _tiny_model(tiny_model_dir, tmp_path, head_type="seq")
+    flags = []
+    real_forward = model.forward
+
+    def spy_forward(*a, extra_heads=True, **kw):
+        flags.append(extra_heads)
+        return real_forward(*a, extra_heads=extra_heads, **kw)
+
+    monkeypatch.setattr(model, "forward", spy_forward)
+    res = sd.bench_verify_pass(model, tok(" ".join(TEXTS))["input_ids"], sizes=(1, 4), repeats=2, warmup=1)
+    assert flags and not any(flags)
+    assert res["head_type"] == "seq" and res["draft_ms"] > 0
+
+
+def test_bench_verify_parallel_heads_no_draft_ms(tiny_model_dir, tmp_path):
+    from mtp.eval import spec_decode as sd
+
+    model, tok = _tiny_model(tiny_model_dir, tmp_path)
+    res = sd.bench_verify_pass(model, tok(" ".join(TEXTS))["input_ids"], sizes=(1,), repeats=2, warmup=1)
+    assert res["head_type"] == "resblock" and res["draft_ms"] is None

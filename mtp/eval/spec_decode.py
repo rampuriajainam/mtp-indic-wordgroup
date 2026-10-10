@@ -244,6 +244,9 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
     the outputs diverged: tiny values mean low-precision rounding flipped a near-tie). With amp
     (e.g. fp16 autocast over fp32 weights, Kaggle T4), fp32_check re-runs the first fp32_check_n
     prompts with amp off; there the outputs must be identical, or the engine has a bug.
+    per_prompt holds each prompt's tokens, steps, gi_hits, gi_spans and match (same order as prompts),
+    so accepted length and Group Integrity can be bootstrapped over prompts (paired across runs: the
+    prompts are the same for every run on a dataset).
     log_every > 0 prints progress every that many prompts (long Kaggle runs). ignore_eos masks EOS
     for head 0 in greedy and in every policy (see generate)."""
     t_start = time.perf_counter()
@@ -277,6 +280,7 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
         secs = 0.0
         prop, acc = [0] * (k - 1), [0] * (k - 1)
         div_margins = []
+        per_prompt = {"tokens": [], "steps": [], "gi_hits": [], "gi_spans": [], "match": []}
         for i, (p, ref) in enumerate(zip(prompts, greedy_ids), 1):
             ids, st = generate(model, tokenizer, p, max_new_tokens, policy, grouper, use_cache=use_cache, amp=amp,
                                ignore_eos=ignore_eos)
@@ -293,6 +297,9 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
             spans += st["gi_spans"]
             prop = [a + b for a, b in zip(prop, st["proposed"])]
             acc = [a + b for a, b in zip(acc, st["accepted"])]
+            for key in ("tokens", "steps", "gi_hits", "gi_spans"):
+                per_prompt[key].append(int(st[key]))
+            per_prompt["match"].append(d is None)
         fp32_check = None
         if check_prompts:
             same, check_margins = 0, []
@@ -321,6 +328,7 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
             "n_prompts": len(prompts),
             "mean_new_tokens": tokens / len(prompts) if prompts else None,
             "ignore_eos": bool(ignore_eos),
+            "per_prompt": per_prompt,
         })
     return results
 
@@ -331,13 +339,18 @@ def bench_verify_pass(model, prefix_ids, sizes=(1, 4, 8, 16, 25, 32, 64), repeat
     (chain drafts or tree nodes), on top of a cached prefix: the full MTPModel forward (all heads),
     then the cache is rolled back. Also times greedy's single-token base-LM pass for reference.
 
-    Returns {"prefix_len", "greedy_ms", "passes": [{"positions", "ms", "ms_p90", "x_greedy"}]}, medians
-    over `repeats`. A tree pass also needs a custom attention mask; its cost is close to the causal one."""
+    Returns {"prefix_len", "greedy_ms", "passes": [{"positions", "ms", "ms_p90", "x_greedy"}], "head_type",
+    "draft_ms"}, medians over `repeats`. A tree pass also needs a custom attention mask; its cost is close
+    to the causal one. Sequential heads (head_type "seq") verify with head 0 only (extra_heads=False, as
+    generate() does) and draft separately: draft_ms = one draft_chain of k-1 steps, so a decoding step
+    costs about ms + draft_ms (draft_ms is None for parallel heads, whose drafts come with the pass)."""
     device = next(model.parameters()).device
     amp = amp or contextlib.nullcontext
     gen = torch.Generator().manual_seed(seed)
     vocab = model.base_model.get_output_embeddings().out_features
     prefix = torch.tensor([list(prefix_ids)], device=device)
+    seq_heads = getattr(model, "head_type", None) == "seq"
+    fwd = {"extra_heads": False} if seq_heads else {}
 
     def timed(fn, n_rep):
         times = []
@@ -351,7 +364,7 @@ def bench_verify_pass(model, prefix_ids, sizes=(1, 4, 8, 16, 25, 32, 64), repeat
         return times[len(times) // 2], times[min(len(times) - 1, int(0.9 * len(times)))]
 
     with amp():
-        out = model(prefix, use_cache=True)
+        out = model(prefix, use_cache=True, **fwd)
         cache = out.aux["past_key_values"]
         base_out = model.base_model(input_ids=prefix, use_cache=True)
         base_cache = base_out.past_key_values
@@ -368,10 +381,21 @@ def bench_verify_pass(model, prefix_ids, sizes=(1, 4, 8, 16, 25, 32, 64), repeat
         for n in sizes:
             def verify_pass(n=n):
                 toks = torch.randint(0, vocab, (1, n), generator=gen).to(device)
-                model(toks, past_key_values=cache, use_cache=True)
+                model(toks, past_key_values=cache, use_cache=True, **fwd)
                 _crop(cache, n)
 
             timed(verify_pass, warmup)
             ms, p90 = timed(verify_pass, repeats)
             passes.append({"positions": n, "ms": ms, "ms_p90": p90, "x_greedy": ms / greedy_ms if greedy_ms else None})
-    return {"prefix_len": prefix.shape[1], "greedy_ms": greedy_ms, "passes": passes}
+
+        draft_ms = None
+        if seq_heads:
+            h = out.hidden[0, -1]
+
+            def draft():
+                model.draft_chain(h, int(torch.randint(0, vocab, (1,), generator=gen)), model.num_heads - 1)
+
+            timed(draft, warmup)
+            draft_ms, _ = timed(draft, repeats)
+    return {"prefix_len": prefix.shape[1], "greedy_ms": greedy_ms, "passes": passes,
+            "head_type": getattr(model, "head_type", None), "draft_ms": draft_ms}

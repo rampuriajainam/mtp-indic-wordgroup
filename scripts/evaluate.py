@@ -205,6 +205,8 @@ def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT /
               f"greedy 1-token pass {bench['greedy_ms']:.1f} ms")
         for b in bench["passes"]:
             print(f"  {b['positions']:>3} positions: {b['ms']:7.1f} ms  (x{b['x_greedy']:.2f} greedy, p90 {b['ms_p90']:.1f})")
+        if bench["draft_ms"] is not None:
+            print(f"  + draft chain ({model.num_heads - 1} sequential steps): {bench['draft_ms']:.1f} ms per decoding step")
     if not heads and not spec_decode:
         return written
     for name in datasets:

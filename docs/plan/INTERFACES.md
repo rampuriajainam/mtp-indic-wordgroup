@@ -225,10 +225,11 @@ Only the last 2 step folders are kept, plus `keep_steps`. A published run = this
                    "tokens_per_sec": 31.5, "greedy_tokens_per_sec": 24.0, "speedup": 1.31,
                    "outputs_match_greedy": true, "match_rate": 1.0, "max_mismatch_margin": null,
                    "fp32_check": {"n_prompts": 20, "match_rate": 1.0, "outputs_match_greedy": true, "max_mismatch_margin": null},
-                   "group_integrity": 0.71, "n_prompts": 200, "mean_new_tokens": 64.0, "ignore_eos": false}]
+                   "group_integrity": 0.71, "n_prompts": 200, "mean_new_tokens": 64.0, "ignore_eos": false,
+                   "per_prompt": {"tokens": [64, ...], "steps": [46, ...], "gi_hits": [9, ...], "gi_spans": [12, ...], "match": [true, ...]}}]
 }
 ```
-`outputs_match_greedy` = every prompt identical to greedy in the timed run; `match_rate` = share of prompts identical; `max_mismatch_margin` = largest greedy top-1 minus top-2 logit at a point where an output diverged (tiny = a near-tie flipped by fp16 rounding). `fp32_check` (only under fp16 autocast, e.g. T4) re-runs the first 20 prompts with autocast off: it must be all identical, else the engine has a bug (its own `max_mismatch_margin` tells a sub-1e-5 fp32 tie from a real bug); `null` when the run has no autocast. `mean_new_tokens` = generated tokens per prompt (well below `max_new_tokens` = the model stops at EOS early); `ignore_eos` = EOS was masked for head 0 in greedy and in the verifier (`evaluate.py --ignore_eos auto`: frozen backbone on an instruct base, i.e. Rsd_mr), so the output is still identical to (masked) greedy. Entries written before these fields existed lack them.
+`outputs_match_greedy` = every prompt identical to greedy in the timed run; `match_rate` = share of prompts identical; `max_mismatch_margin` = largest greedy top-1 minus top-2 logit at a point where an output diverged (tiny = a near-tie flipped by fp16 rounding). `fp32_check` (only under fp16 autocast, e.g. T4) re-runs the first 20 prompts with autocast off: it must be all identical, else the engine has a bug (its own `max_mismatch_margin` tells a sub-1e-5 fp32 tie from a real bug); `null` when the run has no autocast. `mean_new_tokens` = generated tokens per prompt (well below `max_new_tokens` = the model stops at EOS early); `ignore_eos` = EOS was masked for head 0 in greedy and in the verifier (`evaluate.py --ignore_eos auto`: frozen backbone on an instruct base, i.e. Rsd_mr), so the output is still identical to (masked) greedy. `per_prompt` = one value per prompt (same prompts, same order for every run on a dataset), so accepted length (Σtokens / Σsteps) and Group Integrity (Σgi_hits / Σgi_spans) can be bootstrapped, paired across runs. Entries written before these fields existed lack them.
 
 In-group / at-boundary are defined exactly as `scripts/train.py`'s `evaluate` (target t+d+1 in source t's group). For the same model, data and step, OM-4's numbers must match train.py's logged eval to 1e-3. A split with no positions (`n_in_group` or `n_at_boundary` = 0, e.g. head 3 on short groups) has `null` top1/loss; train.py logs 0.0 there.
 
@@ -242,9 +243,10 @@ def evaluate_heads(model, examples, collator, cfg, device, top_k=(1, 5), dump_pa
 Verify-pass cost (`--bench_verify`), `results/{run_name}/bench_verify.json`: the wall-clock of ONE verification pass (full MTPModel forward on a cached 64-token prefix, then rolled back) vs the number of positions it scores (chain drafts or tree nodes), for sizing draft trees (#33):
 ```json
 {"run_name": "...", "step": 12500, "device": "cuda:0", "gpu": "Tesla T4", "fp16_autocast": true, "prefix_len": 64,
- "greedy_ms": 36.0, "passes": [{"positions": 1, "ms": 37.0, "ms_p90": 38.1, "x_greedy": 1.03}, {"positions": 25, "ms": 40.2, "ms_p90": 41.0, "x_greedy": 1.12}]}
+ "greedy_ms": 36.0, "passes": [{"positions": 1, "ms": 37.0, "ms_p90": 38.1, "x_greedy": 1.03}, {"positions": 25, "ms": 40.2, "ms_p90": 41.0, "x_greedy": 1.12}],
+ "head_type": "resblock", "draft_ms": null}
 ```
-`greedy_ms` = greedy's single-token base-LM pass; `ms` = median over repeats. (Example numbers are illustrative.)
+`greedy_ms` = greedy's single-token base-LM pass; `ms` = median over repeats. Sequential heads (`head_type: seq`) verify with head 0 only, as `generate()` does, and draft separately: `draft_ms` = one `draft_chain` of k−1 steps, so a decoding step costs ≈ `ms` + `draft_ms`. `draft_ms` is `null` for parallel heads. (Example numbers are illustrative.)
 
 Per-token dump (`--dump_tokens`), `results/{run_name}/tokens_{dataset}.jsonl`, one line per (sentence, position, head):
 ```json
