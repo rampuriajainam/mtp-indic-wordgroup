@@ -116,21 +116,21 @@ Same seed (42), same data order, eval during training on `eval_small` (pilots on
 
 | ID | P | lang | heads | extra losses | weighting | grouper | why | status |
 |---|---|---|---|---|---|---|---|---|
-| R0 | P0 | hi | 1 | – | – | – | NTP baseline | running |
-| R1 | P0 | hi | 2 linear (α=1) | – | sum | – | reproduce laptop MTP (gate) | running |
-| R2 | P0 | hi | 4 resblock | – | fixed 0.8^d | – | token-level MTP baseline | running |
+| R0 | P0 | hi | 1 | – | – | – | NTP baseline | done |
+| R1 | P0 | hi | 2 linear (α=1) | – | sum | – | reproduce laptop MTP (gate) | done |
+| R2 | P0 | hi | 4 resblock | – | fixed 0.8^d | – | token-level MTP baseline | done |
 | pilots | P0 | hi | 4 resblock | S2 / S3 / S3-chain / S23 / S3-all | fixed | v0 | pick the structural loss (+ `pilot_R2ref`) | ready |
 | R3 | P0 | hi | 4 resblock | structural (S23_mix 0.25/0.25, chain) | fixed | v0 | method, part 1 | done (`mtp-run-R3`) |
-| R6a | P0 | hi | 4 resblock | = R3 | fixed | **random** | control: is it the linguistics? | done (`mtp-run-R6a`) |
-| R5 | P1 | hi | 4 resblock | = R3 | adaptive (JN-7b pilot winner) | v0 | full method (unfrozen line) | **only if** a `pilot_w_*` beats `pilot_w_fixed` with a 95% CI excluding 0 on in-group top-1 or acceptance (#36); else a negative row |
-| R6 | P1 | hi | = R5 | | | **random** | control for the full method | only if R5 runs |
-| Rsd | P0 | hi | 4 resblock, **frozen backbone** | – (CE on self-distilled text) | fixed (weighting is a no-op when frozen, #36) | – | fast line: lossless, + trees (JN-9) | done (`mtp-run-Rsd`, `mtp-run-Rsd-s43`) |
+| R6a | P0 | hi | 4 resblock | = R3 | fixed | **random** | control: is it the linguistics? | done (`mtp-run-R6a`); seed-43 pair R3_s43 / R6a_s43 done |
+| R5 | P1 | hi | 4 resblock | = R3 | adaptive (JN-7b pilot winner) | v0 | full method (unfrozen line) | **dropped**: no `pilot_w_*` that keeps head 0 beats `pilot_w_fixed` (#36; numbers in `docs/runs.md`) |
+| R6 | P1 | hi | = R5 | | | **random** | control for the full method | dropped (R5 dropped) |
+| Rsd | P0 | hi | 4 resblock, **frozen backbone** | – (CE on self-distilled text) | fixed (weighting is a no-op when frozen, #36) | – | fast line: lossless, + trees (JN-9) | done (`mtp-run-Rsd`, `mtp-run-Rsd-s43`); variants soft / k6 / mr / mr_soft done, long / data2x running |
 | R4 | P2 | hi | 4 resblock | structural + contrastive | fixed | best | does contrastive add anything? | needs JN-6 |
 | R7 | P2 | hi | = R5 | | | other grouper | grouper ablation | needs JI-3/JI-5 |
-| R8 | P1 | mr | 1 | – | – | – | Marathi NTP | |
-| R9 | P1 | mr | 4 resblock | – | fixed | – | Marathi MTP | |
-| R10 | P1 | mr | = R5 | | | mr best | Marathi full method | needs JI-7 |
-| A1 | P2 | hi | R2 with α = 0 and 1 | | | | C4 ablation, full length | |
+| R8 | P1 | mr | 1 | – | – | – | Marathi NTP | done |
+| R9 | P1 | mr | 4 resblock | – | fixed | – | Marathi MTP | done |
+| R10 | P1 | mr | = R3 (R5 dropped) | | | `mr_rules_v1`; R10a `random_mr_v1` | Marathi structural run + control | done (`mtp-run-R10`, `-R10a`) |
+| A1 | P2 | hi | R2 with α = 0 and 1 | | | | C4 ablation, full length | done |
 
 Optional (P2): k ∈ {2, 3, 6} on R3; a second seed for R2 and R3.
 Compute: one 12.5k-step run ≈ 75 min on one T4; one Kaggle session with T4 x2 does 2 runs in parallel; the 6 pilots fit in about one hour.
