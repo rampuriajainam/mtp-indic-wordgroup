@@ -26,6 +26,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser()
     ap.add_argument("--lang", default="hi")
     ap.add_argument("--model_name", default="LingoIITGN/ganga-1b")
+    ap.add_argument("--run_dir", default=None, help="generate with a trained run's head 0 (base + its LoRA) instead")
     ap.add_argument("--n", type=int, default=16000, help="sentences in total (over all shards)")
     ap.add_argument("--skip", type=int, default=0, help="skip the first SKIP train sentences (new prompts for more data)")
     ap.add_argument("--shard", type=int, default=0)
@@ -51,11 +52,16 @@ def main(argv=None):
     if dtype is None:
         dtype = (torch.bfloat16 if torch.cuda.get_device_capability()[0] >= 8 else torch.float16) \
             if device == "cuda" else torch.float32
-    tok = AutoTokenizer.from_pretrained(args.model_name)
+    if args.run_dir:  # head 0 of the run = base model + LoRA (the PEFT model generates with the adapter)
+        from mtp.model.checkpoint import load_run
+        mtp_model, tok, _ = load_run(args.run_dir, device=device)
+        model = mtp_model.base_model.merge_and_unload().to(dtype).eval()
+    else:
+        tok = AutoTokenizer.from_pretrained(args.model_name)
+        model = AutoModelForCausalLM.from_pretrained(args.model_name, dtype=dtype).to(device).eval()
     tok.padding_side = "left"
     if tok.pad_token_id is None:
         tok.pad_token = tok.unk_token
-    model = AutoModelForCausalLM.from_pretrained(args.model_name, dtype=dtype).to(device).eval()
 
     texts = load_split(args.lang, "train", args.skip + args.n)[args.skip:]
     rng = random.Random(args.seed)
