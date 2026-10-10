@@ -1,0 +1,10 @@
+{
+  "seed": 42,
+  "n": 200,
+  "sources": {
+    "flores_devtest": 100,
+    "indiccorp_train": 100
+  },
+  "human_annotations_completed": 0,
+  "source_url": "https://github.com/facebookresearch/flores/blob/main/flores200/README.md"
+}

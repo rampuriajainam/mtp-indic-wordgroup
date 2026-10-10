@@ -1,0 +1,30 @@
+{
+  "mr": {
+    "grouper": "mr_rules_v1",
+    "n_sentences": 5000,
+    "requested_sentences": 5000,
+    "source": "IndicCorpV2 mr train raw rows >= 1000",
+    "sentence_sha256": "065488aa08de197b686aefabf750b8c6b58cd6dd2cdc68fc1c7c8a1b0eab11a0",
+    "histogram": {
+      "1": 0.9435380002341766,
+      "2": 0.05606491780912576,
+      "3": 0.00037671877943115466,
+      "4": 2.03631772665489e-05
+    }
+  },
+  "hi": {
+    "grouper": "hi_rules_v1",
+    "n_sentences": 5000,
+    "requested_sentences": 5000,
+    "source": "IndicCorpV2 hi train raw rows >= 1000",
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "histogram": {
+      "1": 0.6567202385135067,
+      "2": 0.28554865133461155,
+      "3": 0.049359045142897295,
+      "4": 0.007794854291938123,
+      "5": 0.000496903139022456,
+      "6": 8.030757802383128e-05
+    }
+  }
+}

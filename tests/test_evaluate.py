@@ -109,7 +109,7 @@ def test_rerun_keeps_other_sections(evaluate, tiny_run, tmp_path):
 
 def test_unknown_grouper_evaluates_without_split(evaluate, tiny_run, tmp_path):
     with pytest.warns(UserWarning, match="not registered"):
-        evaluate.evaluate_run(tiny_run, ["indiccorp_eval_small"], grouper_name="mr_rules_v1",
+        evaluate.evaluate_run(tiny_run, ["indiccorp_eval_small"], grouper_name="unregistered_test_grouper",
                               out_dir=tmp_path, device="cpu", texts_fn=fake_texts)
     rec = json.loads((tmp_path / "tiny_R2" / "eval_indiccorp_eval_small.json").read_text(encoding="utf-8"))
     assert rec["grouper"] is None

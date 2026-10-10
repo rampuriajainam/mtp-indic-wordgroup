@@ -1,0 +1,77 @@
+{
+  "scope": "random tiny Mistral implementation smoke ONLY; not frozen ganga findings",
+  "reports": {
+    "hi_rules_v1": {
+      "layer": [
+        0,
+        1,
+        2
+      ],
+      "f1": [
+        0.0,
+        0.0,
+        0.5
+      ],
+      "acc": [
+        0.6,
+        0.6,
+        0.6
+      ],
+      "majority_baseline": {
+        "class": 0,
+        "f1": 0.0,
+        "acc": 0.6
+      },
+      "grouper": "hi_rules_v1",
+      "tokenizer": "",
+      "seed": 42,
+      "n_train_sentences": 2,
+      "n_eval_sentences": 1,
+      "n_train_positions": 7,
+      "n_eval_positions": 5,
+      "train_sentence_sha256": "236d01c2833c9fb0317892d05972d74b96f67a675200dc00289575df3de303ea",
+      "eval_sentence_sha256": "8cbe878eeb89f6563223bbafdc531454d378dc791dbc9f74912e10e9724a5f8b",
+      "max_length": 128,
+      "max_train_positions_per_sentence": 64,
+      "probe": "streaming SGD logistic, one epoch",
+      "base_model_frozen": true,
+      "shared_forward_label_sets": 2
+    },
+    "words": {
+      "layer": [
+        0,
+        1,
+        2
+      ],
+      "f1": [
+        1.0,
+        1.0,
+        0.5714285714285714
+      ],
+      "acc": [
+        1.0,
+        1.0,
+        0.4
+      ],
+      "majority_baseline": {
+        "class": 1,
+        "f1": 1.0,
+        "acc": 1.0
+      },
+      "grouper": "words",
+      "tokenizer": "",
+      "seed": 42,
+      "n_train_sentences": 2,
+      "n_eval_sentences": 1,
+      "n_train_positions": 7,
+      "n_eval_positions": 5,
+      "train_sentence_sha256": "236d01c2833c9fb0317892d05972d74b96f67a675200dc00289575df3de303ea",
+      "eval_sentence_sha256": "8cbe878eeb89f6563223bbafdc531454d378dc791dbc9f74912e10e9724a5f8b",
+      "max_length": 128,
+      "max_train_positions_per_sentence": 64,
+      "probe": "streaming SGD logistic, one epoch",
+      "base_model_frozen": true,
+      "shared_forward_label_sets": 2
+    }
+  }
+}

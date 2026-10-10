@@ -1,0 +1,47 @@
+{
+  "source": "IndicCorpV2/indiccorp_v2/hin_Deva train (raw rows >= 1000)",
+  "requested_sentences": 5000,
+  "complete_sample": true,
+  "reports": [
+    {
+      "sentences": 5000,
+      "words": 280928,
+      "groups": 211477,
+      "attached_words": 69451,
+      "grouper": "hi_rules_v0",
+      "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+      "percent_words_attached": 24.72199282378403,
+      "words_per_group": 1.3284092359925666,
+      "tokens_per_group": 1.4841249369147087,
+      "tokenizer": "LingoIITGN/ganga-1b",
+      "max_length": 128,
+      "group_types": {
+        "postposition": 48670,
+        "single": 147479,
+        "aux_chain": 15328
+      },
+      "partition_check": "passed"
+    },
+    {
+      "sentences": 5000,
+      "words": 280928,
+      "groups": 199234,
+      "attached_words": 81694,
+      "grouper": "hi_rules_v1",
+      "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+      "percent_words_attached": 29.0800489805217,
+      "words_per_group": 1.4100404549424295,
+      "tokens_per_group": 1.5740879515635966,
+      "tokenizer": "LingoIITGN/ganga-1b",
+      "max_length": 128,
+      "group_types": {
+        "compound_postposition": 4106,
+        "single": 130841,
+        "postposition": 47921,
+        "aux_chain": 15318,
+        "light_verb": 1048
+      },
+      "partition_check": "passed"
+    }
+  ]
+}

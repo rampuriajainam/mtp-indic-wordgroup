@@ -1,0 +1,18 @@
+{
+  "grouper": "hi_rules_v1",
+  "lang": "hi",
+  "tokenizer": "LingoIITGN/ganga-1b",
+  "max_length": 128,
+  "n_rows": 32,
+  "words_per_group": 1.44400396432111,
+  "tokens_per_group": 1.6202127659574468,
+  "pct_tokens_group_start": 61.720288903479975,
+  "scope": "32-row real-data cache roundtrip; production 200k caches not built",
+  "schema": [
+    "text",
+    "input_ids",
+    "attention_mask",
+    "group_start",
+    "group_id"
+  ]
+}

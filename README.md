@@ -46,3 +46,9 @@ docs/                plan, interface contracts, design notes, run log
 tests/               pytest, CPU-only
 legacy/              the original laptop scripts, kept for reference
 ```
+
+## Jai's new-code handoff
+
+See [JAI_HANDOFF.md](docs/JAI_HANDOFF.md) for implemented modules, real-data statistics, annotation packets, next commands and pending human work. Hindi/Marathi v1, parser adapters, score/statistics/cache/probe/error-analysis tools are integrated with the latest upload. The teammate's random grouper, its tests and R6a config are unchanged.
+
+Om's ready text-only packet is `data/annotation/hi_om50_text_only.jsonl`. Human-reviewed gold and agreement are still to be produced; the rule drafts are explicitly labelled. Full C5 model results are not claimed. Measured C3 outputs and vector figures are in `results/grouping/` and `results/figures/`.

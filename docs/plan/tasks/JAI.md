@@ -4,6 +4,8 @@
 
 ## Context (paste this to Claude)
 
+**Latest teammate sync (2026-10-10) overrides earlier phase-order priorities:** Jai: JI-1 → start JI-2 → JI-8 → JI-3/JI-5 → JI-10 → JI-7. JI-4 is teammate-owned and already merged in this upload. Code and measured progress are summarized in `docs/JAI_HANDOFF.md`; gold annotation and the full production C5 run remain pending.
+
 We are building *Word-Group Guided Multi-Token Prediction for Hindi and Marathi*. A 1B Hindi LM (`LingoIITGN/ganga-1b`, SentencePiece-style tokenizer, vocab 30k, adds no BOS, ~1.12 tokens per word) is fine-tuned with LoRA plus extra prediction heads that guess tokens t+2, t+3, t+4. Hypothesis: those far heads do better if they know where **word groups** begin and end. A word group is a multi-word unit of meaning: verb + auxiliaries (जा रहा था), noun + postposition (घर से), compound postposition (के बारे में), light-verb construction (कर दिया). My job: produce word groups reliably, measure how good they are and how much signal they carry, and supply the linguistic analysis for the report.
 
 The code is the `mtp/` package (see `docs/plan/INTERFACES.md` §2, §7, §12). Already on `main`:
@@ -11,7 +13,7 @@ The code is the `mtp/` package (see `docs/plan/INTERFACES.md` §2, §7, §12). A
 - `mtp/data/grouping/hindi_rules.py`: `hi_rules_v0` = the original rules (21 auxiliaries + 8 postpositions; a word joins the previous group if, punctuation stripped, it is in a list). On IndicCorp: 24.6% of words attach, 1.33 words/group.
 - `mtp/data/grouping/align.py`: `label_tokens` / `label_batch` turn word groups into token labels (`group_start`, `group_id`) via `offset_mapping`. Training labels data on the fly with these, so a grouper registered in `REGISTRY` is immediately usable for training (`data.grouper: <name>`) and evaluation.
 - `mtp/data/corpus.py`: `load_split(lang, "eval" | "eval_small" | "train" | "flores", n)`.
-- `legacy/validate_on_real_data.py` has a longer, never-used list set (light verbs, वाला-forms, तक/भी/ही/साथ/पास/नहीं, compound postpositions) to start v1 from.
+- `legacy/validate_on_real_data.py` has saved expanded single-word lists used by its demo, plus an unused compound set (light verbs, वाला-forms, तक/भी/ही/साथ/पास/नहीं, compound postpositions) to start v1 from.
 - `scripts/jn2_structural_stats.py` (part A) computes same-group rates per lookahead; start JI-8 from it.
 
 Numbers so far (v0, ganga tokenizer, 2,500 IndicCorp sentences): group = 1.49 tokens; token t+d is in t's group 33.4 / 7.8 / 2.5 / 0.8% for d = 1..4 (each-word-its-own-group baseline: 11.0 / 3.9 / 1.4 / 0.5%).
@@ -20,7 +22,7 @@ Data: `load_dataset("ai4bharat/IndicCorpV2", "indiccorp_v2", split="hin_Deva", s
 
 ## Tasks
 
-### JI-1 · Hindi rule grouper v1 · P0 · S-M
+### JI-1 · Hindi rule grouper v1 (implemented and measured) · P0 · S-M
 - In `mtp/data/grouping/hindi_rules.py`: add `WORD_LISTS["v1"]` and `class HindiRuleGrouperV1` (`name = "hi_rules_v1"`), register it in `REGISTRY`.
 - Lists:
   - **Auxiliaries / aspect / modal:** है हैं था थी थे हो होगा होगी होंगे हूँ रहा रही रहे गया गई गए गये सकता सकती सकते चुका चुकी चुके पाया पाई पाए
@@ -37,15 +39,10 @@ Data: `load_dataset("ai4bharat/IndicCorpV2", "indiccorp_v2", split="hin_Deva", s
 - Run it on 5,000 train sentences and put the coverage numbers (% words attached, words/group, tokens/group) in the PR description.
 - Done when: `get_grouper("hi_rules_v1")` works, tests pass, numbers posted. Then tell Jainam (D2): his configs switch with one line.
 
-### JI-4 · Random grouper (the control) · P0 · S
-- `mtp/data/grouping/random_grouper.py`, `class RandomGrouper`, `name = "random"`, registered.
-- `__init__(lang="hi", histogram=None, seed=0)`: group-length distribution `{1: 0.7, 2: 0.2, ...}` (in words). Default: measured from `hi_rules_v1` (or v0 until v1 exists) on 5,000 train sentences and stored as a constant in the module, so `get_grouper("random")` needs no arguments.
-- `group_words`: sample group lengths until the sentence is covered (the last group is cut to fit), deterministic per `(seed, sentence)`; use a hash of the sentence, not Python's `hash()`, which changes between runs. `group_types`: all `"other"`.
-- `RandomGrouper.fit_from(grouper, sentences, seed=0)` builds one with another grouper's histogram.
-- Tests: deterministic across instances, partition holds, the length histogram over 2,000 synthetic sentences matches the input within a few percent.
-- Why it matters: R6a/R6 (same losses, random boundaries) is the experiment that shows the gain comes from linguistics. **This unblocks Jainam's R6a.**
+### JI-4 · Teammate-owned random grouper (already present)
+Do not overwrite `random_grouper.py`, `test_random_grouper.py` or `configs/R6a.yaml`. Their v0 defaults and the existing `random` registry entry are preserved. Jai's v1 refit is in `histograms_v1.json`, with opt-in `random_hi_v1` / `random_mr_v1` names and `scripts/refit_random.py`. See `docs/JAI_HANDOFF.md` before changing final-run configs.
 
-### JI-8 · How far does structure reach? (C3) · P0 · M
+### JI-8 · How far does structure reach? (C3; implemented and measured) · P0 · M
 - `scripts/group_stats.py` → `results/grouping/stats_{lang}.json` (INTERFACES §12) + 2 figures in `results/figures/`.
 - For groupers {`words` (each word its own group), `hi_rules_v0`, `hi_rules_v1`, `random`} × tokenizers {ganga-1b, Misal-1B (Marathi model), `google/mt5-small`, `bigscience/bloom-560m`, `xlm-roberta-base`} on 5,000 Hindi train sentences:
   - words/group, tokens/group, tokens/word;
@@ -55,7 +52,7 @@ Data: `load_dataset("ai4bharat/IndicCorpV2", "indiccorp_v2", split="hin_Deva", s
 - Also: the 30 most frequent multi-word groups.
 - This is the "how far does linguistic structure reach" result that frames the whole method section.
 
-### JI-2 · Annotation guide + Hindi gold set · P1 · L (start in Phase 1)
+### JI-2 · Annotation guide + Hindi gold set (guide/packets/tools ready; human labels pending) · P1 · L (start in Phase 1)
 - `docs/annotation_guide.md` (1-2 pages):
   - what counts as a group, with 3+ examples per type (aux chain, postposition, compound postposition, light verb, negation, वाला-forms);
   - what does not (adjective + noun, coordination, numbers).
@@ -86,7 +83,7 @@ Data: `load_dataset("ai4bharat/IndicCorpV2", "indiccorp_v2", split="hin_Deva", s
   - **word start** (does the next token start a new word?), the baseline that separates "knows word boundaries" from "knows word-group boundaries".
 - The interesting result: the layer where group-boundary F1 rises above word-boundary F1, if any. Compare with the S2 probe accuracy on the trained heads (Jainam's runs log `struct/boundary_bce`).
 
-### JI-7 · Marathi · P1 · L
+### JI-7 · Marathi (rules/statistics/packets ready; human labels pending) · P1 · L
 - `mtp/data/grouping/marathi_rules.py`, `name = "mr_rules_v1"`, registered.
 - Marathi postpositions are mostly suffixes (घरात, घराला, घरासाठी), so fewer separate words attach.
 - Separate attaching words:
@@ -106,3 +103,7 @@ From Om's per-token dumps (INTERFACES §10), re-run the grouper on the text to a
 
 ### Write-up
 Data & annotation (corpora, rules, guideline summary, gold sizes, κ, grouper scores); C3 reach analysis; C5 probing; related work (MTP: Gloeckle et al. 2024, Medusa, Aynetdinov & Akbik; morphology-aware tokenization; Indic LMs; multi-task weighting: Kendall et al. 2018, DWA) with `docs/references.bib`.
+
+## Implementation status for this package
+
+Read `docs/JAI_HANDOFF.md` and `results/grouping/IMPLEMENTATION_STATUS.json` before claiming task completion. Parser adapters, score/cache/error-analysis CLIs and frozen-model probe tools exist with CPU tests. Their original task definitions below describe the research outcomes that still need full runs or reviewed annotations, not just code. No rule-generated suggestions are saved as human gold.

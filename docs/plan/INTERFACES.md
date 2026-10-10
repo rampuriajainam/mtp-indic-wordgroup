@@ -18,7 +18,7 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `mtp/data/corpus.py` | `load_split(lang, split, n)` | [exists] |
 | `mtp/data/collate.py` | `Collator(pad_id)` | [exists] |
 | `mtp/data/grouping/base.py` | `Grouper` protocol, `REGISTRY`, `get_grouper`, `check_partition` | [exists] |
-| `mtp/data/grouping/hindi_rules.py` | `hi_rules_v0` (legacy lists) | [exists]; `hi_rules_v1` [todo: Jai] |
+| `mtp/data/grouping/hindi_rules.py` | `hi_rules_v0`, `hi_rules_v1` | [exists] |
 | `mtp/data/grouping/align.py` | `label_tokens`, `label_batch` | [exists] |
 | `mtp/model/heads.py` | `MTPModel`, `MTPOutput` | [exists] |
 | `mtp/model/build.py` | `build_model(cfg, device)`, `load_tokenizer` | [exists] |
@@ -34,9 +34,9 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `mtp/eval/head_accuracy.py` | `evaluate_heads` (per-head loss/ppl/top-k, in-group split, token dump; ppl lives here, no separate `perplexity.py`) | [exists] |
 | `mtp/eval/spec_decode.py` | self-speculative decoding engine (`generate`, `greedy_generate`, `evaluate_spec_decode`, `make_prompts`) | [exists] |
 | `scripts/evaluate.py`, `notebooks/kaggle_eval.ipynb` | evaluation entry point: per-head eval + `--spec_decode` → §10 JSON | [exists] |
-| `mtp/data/grouping/{random_grouper,trankit_grouper,marathi_rules}.py` | groupers | [todo: Jai] |
-| `mtp/eval/group_metrics.py`, `scripts/{score_groupers,group_stats,probe_layers,annotate}.py` | grouper quality, statistics, probing | [todo: Jai] |
-| `mtp/data/boundary_cache.py`, `scripts/build_boundary_cache.py` | optional pre-labelled cache | [todo: Jai, P2] |
+| `mtp/data/grouping/{random_grouper,trankit_grouper,marathi_rules,random_refit,words}.py` | groupers; original random stays teammate-owned | [exists; Trankit live setup optional; Stanza smoke tested] |
+| `mtp/eval/group_metrics.py`, `scripts/{score_groupers,group_stats,probe_layers,annotate}.py` | grouper quality, statistics, probing | [exists; human gold/full C5 run pending] |
+| `mtp/data/boundary_cache.py`, `scripts/build_boundary_cache.py` | optional pre-labelled cache | [exists; production cache publication pending] |
 | `scripts/make_tables.py` | tables + figures | [todo: Om] |
 
 `legacy/` holds the original laptop scripts (see `legacy/README.md`).
@@ -284,3 +284,40 @@ Correctness: the output must be **identical** to plain greedy decoding with head
 - `results/grouping/stats_{lang}.json`: `{"grouper": ..., "tokenizer": ..., "n_sentences": ..., "words_per_group": ..., "tokens_per_group": ..., "tokens_per_word": ..., "same_group_rate": {"1": 0.33, "2": 0.08, "3": 0.025, "4": 0.008}}`, one object per (grouper, tokenizer) in a list.
 - `results/grouping/{lang}_scores.json`: per grouper, boundary P/R/F1, exact-group accuracy, per type; κ.
 - `results/probing/{lang}_{grouper}.json`: `{"layer": [0..L], "f1": [...], "acc": [...], "majority_baseline": ...}`.
+
+## 13. Jai implementation extensions (additive; 2026-10-10 sync)
+
+Existing model, training, checkpoint, eval and grouping signatures are unchanged. The teammate-owned `random` registry entry and its v0 histogram remain unchanged. New names:
+
+- `hi_rules_v1`, `mr_rules_v1`: language-specific rule groupers (Hindi has alias `HindiRuleGrouper` for `HindiRuleGrouperV1`).
+- `words`: whitespace singleton baseline, hi or mr.
+- `trankit`, `stanza`: separate lazy parser backends; optional injected pipeline for CPU tests. No implicit fallback or silently changed grouper name. `batch_group_words` is available. A bounded last-sentence cache avoids parsing again for `group_types`.
+- `random_hi_v1`, `random_mr_v1`: measured v1 controls from `histograms_v1.json`. The existing `random` is reproducible for R6a.
+
+```python
+# mtp/data/annotation.py
+validate_record(row, require_groups=True) -> dict
+read_jsonl(path, require_groups=False) -> list[dict]
+parse_spans(value, n_words) -> list[list[int]]
+# mtp/data/boundary_cache.py
+build_cache(texts, tokenizer, grouper, out_dir, max_length=128, batch_size=64, overwrite=False) -> dict
+load_cache(path, tokenizer_name=None, max_length=None) -> (Dataset, meta)
+# mtp/data/flores.py: original FLORES-200 public archive, no import-time downloads
+load_flores_text(lang, split='devtest', archive_path=None) -> list[str]
+# mtp/eval/group_statistics.py
+measure_grouping(texts, tokenizer, grouper, max_length=None) -> dict
+# mtp/eval/group_metrics.py
+score_records(gold, predictions) -> dict
+agreement(a, b) -> dict
+# mtp/eval/layer_probes.py
+run_layer_probes(model, tokenizer, grouper, train_texts, eval_texts,
+                 device='cpu', max_length=128, max_positions=64, seed=42) -> dict
+run_multi_layer_probes(model, tokenizer, groupers, train_texts, eval_texts,
+                       device='cpu', max_length=128, max_positions=64, seed=42) -> dict[str, dict]
+```
+
+Gold format §7 is unchanged; optional `annotation_status` records review provenance. `unreviewed_rule_draft` is not human gold. Scoring rejects drafts by default and never picks a final winner from drafts or partial gold. Blind agreement requires the 50 reviewed IDs. Exact-group accuracy is matched gold spans / all gold spans; per-type scores require both exact span and type. Cohen κ uses every between-word position, including nonattachments; degenerate/no-variation κ is null.
+
+Statistics §12 remain a list of objects, with additive sample hashes, raw pair counts, top groups and truncation metadata. Full-text statistics default to no truncation. Special tokens are excluded. Probe outputs retain layer/F1/accuracy/majority fields plus methodology/provenance. All label sets share one frozen-model forward per sentence; logistic updates run on CPU.
+
+The cache metadata remains inside each cache directory to match current `train.py`. Cache and gold publication, human annotations, full C5 model runs and final grouper choice are distinct from implementation completion. See `docs/JAI_HANDOFF.md`.
