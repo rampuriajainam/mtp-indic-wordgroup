@@ -88,7 +88,10 @@ def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None,
             n = max(0, min(int(n), k - 1, max_new_tokens - len(new) - 1))
             if t0 == eos:
                 n = 0
-            drafts = [int(last[d].argmax()) for d in range(1, n + 1)]
+            if getattr(model, "head_type", None) == "seq":   # sequential heads draft on top of t0
+                drafts = model.draft_chain(out.hidden[0, pos], t0, n) if n else []
+            else:
+                drafts = [int(last[d].argmax()) for d in range(1, n + 1)]
             block = [t0] + drafts
 
             if n == 0 and (t0 == eos or len(new) + 1 >= max_new_tokens):
