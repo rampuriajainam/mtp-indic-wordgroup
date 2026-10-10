@@ -1,7 +1,7 @@
-# R4: R3 + contrastive (JN-6): SupCon over tokens of the same word group on a 128-d projection of the last hidden state (weight 0.05, tau 0.1)
+# R4a: control for R4 = R6a + the same contrastive loss: random groups (data.grouper random). Evaluate with --grouper hi_rules_v0 to compare with R4.
 # Run matrix: docs/plan/README.md §6. Fields: INTERFACES §6 (+ optional: head_layers, optim.grad_accum,
 # optim.weight_decay, data.eval_n, weighting.head_decay, log_every). TBD = decided later; train.py fails loudly on it.
-run_name: R4_hi_k4_struct_contr
+run_name: R4a_hi_k4_struct_contr_random
 lang: hi
 model_name: LingoIITGN/ganga-1b
 num_heads: 4
@@ -10,7 +10,7 @@ head_layers: 1
 head_backbone_grad: 0.1   # extra heads send 10% of their gradient into LoRA (2k-step pilot: head 0 +0.011 vs R0)
 lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}
 optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500, grad_accum: 1, weight_decay: 0.01}
-data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: hi_rules_v0, max_length: 128, eval_n: 100}  # -> hi_rules_v1 when JI-1 lands
+data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: random, max_length: 128, eval_n: 100}
 losses:
   structural: {enabled: true, variant: S23_mix, weight: 1.0, lambda_s2: 0.1, lambda_s3: 0.25, lambda_s3_all: 0.25, s3_teacher: chain}  # JN-5 pilots: design note 5
   contrastive: {enabled: true, weight: 0.05, temperature: 0.1}

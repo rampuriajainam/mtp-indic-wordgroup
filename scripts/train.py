@@ -42,6 +42,7 @@ from mtp.data.corpus import load_split
 from mtp.data.grouping.align import label_batch
 from mtp.data.grouping.base import REGISTRY, get_grouper
 from mtp.device import autocast_ctx, make_scaler, pick_device
+from mtp.losses.contrastive import SupConLoss
 from mtp.losses.mtp_ce import per_head_ce, shift_targets
 from mtp.losses.structural import StructuralLoss
 from mtp.losses.weighting import LossWeighting
@@ -75,7 +76,8 @@ def build_aux_losses(cfg):
         losses.append(StructuralLoss(cfg_get(cfg, "losses.structural.variant"), cfg.num_heads,
                                      s3_teacher=cfg_get(cfg, "losses.structural.s3_teacher", None)))
     if cfg_get(cfg, "losses.contrastive.enabled", False):
-        raise NotImplementedError("contrastive loss lands with JN-6")
+        losses.append(SupConLoss(cfg_get(cfg, "losses.contrastive.temperature", 0.1),
+                                 cfg_get(cfg, "losses.contrastive.max_tokens", 512)))
     return losses
 
 

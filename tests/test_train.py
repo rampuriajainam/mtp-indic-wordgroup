@@ -200,9 +200,9 @@ def test_group_losses_need_cache(tmp_path):
     with pytest.raises(ValueError):
         train_mod.build_aux_losses(cfg)
     cfg.losses.structural.enabled = False
-    cfg.losses.contrastive.enabled = True
-    with pytest.raises(NotImplementedError):
-        train_mod.build_aux_losses(cfg)
+    cfg.losses.contrastive.enabled = True                # JN-6: SupCon over word groups
+    (loss,) = train_mod.build_aux_losses(cfg)
+    assert loss.term_names == ["contrastive/supcon"] and train_mod.needs_groups(cfg)
 
 
 def with_groups(examples, seed=0):
