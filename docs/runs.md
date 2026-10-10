@@ -110,7 +110,7 @@ Accepted length = tokens per step (greedy = 1.0). Speed-up = tokens/s vs greedy 
 
 - **Speed-up:** FixedK gives ×1.12-1.25. ConfidenceCut (τ = 0.5) proposes few drafts (~1.05-1.10 tokens/step) and is slower than greedy for R2. The far heads of R2 are rarely accepted (h2 6-7%, h3 1-2%), so R2's extra heads add cost without adding accepted tokens; R1's single linear head gives the best speed-up.
 - **Correctness:** in fp16, 81-89% of prompts are identical to greedy. Every divergence happens at a near-tie: greedy's top-2 logit margin there is at most 0.0156 = 2⁻⁶, one fp16 step at these logit sizes (some exactly 0, true ties). The fp32 re-check of the same engine (autocast off) is 20/20 identical in 11 of 12 cases.
-- **Open:** R2 / indiccorp_eval / fixed_k is 19/20 in the fp32 re-check. Its divergence margin was not recorded, so a sub-1e-5 fp32 tie is likely but not shown; ConfidenceCut on the same 20 prompts is 20/20. Next run records fp32 margins.
+- **Resolved:** R2 / indiccorp_eval / fixed_k is 19/20 in the fp32 re-check. The rerun (2026-10-10, same numbers: ×1.147 vs ×1.143) records the fp32 divergence margin: **0.0**, an exact tie between greedy's top-2 logits, so argmax tie-breaking differs and the engine is correct.
 
 ## R3 vs R2 (OM-8, official eval)
 
@@ -139,3 +139,56 @@ R3 = `R3_hi_k4_struct` (S23_mix, λ_S3 0.25, λ_S3_all 0.25, chain teacher), `ja
 - **Acceptance and speed are unchanged** (1.39 vs 1.39 tokens/step, ×1.15 vs ×1.14 FixedK on IndicCorp), matching Jainam's 100-prompt check (design note §5). The structural loss improves *what* the heads predict inside groups, not how often head 0 agrees with them.
 - **Correctness:** fp32 re-check 20/20 for every policy and dataset; fp16 divergences again only at near-ties (margin ≤ 0.0156).
 - h3 in-group counts are small (171 IndicCorp, 298 FLORES): read h3's in-group numbers as noisy.
+
+## Rsd: frozen backbone + self-distillation (OM-8, official eval)
+
+`Rsd_hi_k4_frozen_sd` (`jainam2142/mtp-run-rsd`) and its replicate `Rsd_hi_k4_frozen_sd_s43` (`jainam2142/mtp-run-rsd-s43`, seed 43 + shuffled data), step 12500. Same eval as R0-R3: Kaggle T4, grouper `hi_rules_v0`, 200 spec-decode prompts. Head 0 is ganga-1b with no adapter, so it trails R0 (LoRA NTP) by 0.03 loss on IndicCorp eval and is ahead by 0.03 on FLORES.
+
+| run | dataset | h0 | h1 | h2 | h3 | in-group / boundary top-1 (h1 · h2 · h3) |
+|---|---|---|---|---|---|---|
+| R2 | indiccorp_eval | 2.841 (42.4%) | 5.367 (15.0%) | 6.290 (8.1%) | 6.707 (5.3%) | 23.4 / 14.3 · 19.0 / 7.8 · 17.5 / 5.2 |
+| Rsd | indiccorp_eval | 2.865 (42.2%) | 5.967 (13.9%) | 6.869 (7.1%) | 7.250 (4.5%) | 19.9 / 13.4 · 13.1 / 7.0 · 13.5 / 4.5 |
+| Rsd_s43 | indiccorp_eval | 2.865 (42.2%) | 5.969 (14.0%) | 6.878 (7.2%) | 7.257 (4.3%) | 20.0 / 13.5 · 12.6 / 7.1 · 12.9 / 4.3 |
+| R2 | flores_hi | 3.946 (30.3%) | 6.358 (10.3%) | 7.070 (5.9%) | 7.341 (4.4%) | 12.5 / 10.0 · 12.1 / 5.7 · 12.1 / 4.3 |
+| Rsd | flores_hi | 3.984 (29.9%) | 6.909 (8.8%) | 7.577 (4.6%) | 7.822 (3.3%) | 9.5 / 8.7 · 6.9 / 4.5 · 8.7 / 3.3 |
+| Rsd_s43 | flores_hi | 3.984 (29.9%) | 6.908 (8.5%) | 7.580 (4.4%) | 7.822 (2.9%) | 9.1 / 8.5 · 5.9 / 4.4 · 5.0 / 2.9 |
+
+Per-head numbers are against the *real* next tokens; Rsd's heads were trained on the base model's greedy text, so they are worse here and better where it matters, on head 0's own continuations:
+
+| run | dataset | policy | accepted len | accept rate h1 / h2 / h3 | speed-up (tok/s) | identical to greedy (fp16) | fp32 re-check (20) | Group Integrity |
+|---|---|---|---|---|---|---|---|---|
+| R2 | indiccorp_eval | fixed_k | 1.39 | 30.1 / 7.2 / 2.4% | ×1.15 (31.8) | 87.5% | 19/20 (exact tie) | 75.7% |
+| Rsd | indiccorp_eval | fixed_k | **1.67** | 41.7 / 17.4 / 9.1% | **×1.36** (37.5) | 87.5% | 20/20 | 74.2% |
+| Rsd_s43 | indiccorp_eval | fixed_k | 1.66 | 40.7 / 17.6 / 8.9% | ×1.35 (37.4) | 87.5% | 20/20 | 74.4% |
+| Rsd | indiccorp_eval | confidence_cut | 1.36 | 70.5 / 64.3 / 67.8% | ×1.14 | 87.0% | 20/20 | 72.2% |
+| Rsd_s43 | indiccorp_eval | confidence_cut | 1.37 | 70.5 / 65.9 / 67.8% | ×1.14 | 88.0% | 20/20 | 71.5% |
+| R2 | flores_hi | fixed_k | 1.36 | 29.5 / 6.2 / 1.3% | ×1.12 (31.1) | 89.0% | 20/20 | 79.0% |
+| Rsd | flores_hi | fixed_k | **1.60** | 39.0 / 15.5 / 7.1% | **×1.32** (36.4) | 82.5% | 20/20 | 80.2% |
+| Rsd_s43 | flores_hi | fixed_k | 1.62 | 39.6 / 15.7 / 7.6% | ×1.33 (36.8) | 82.5% | 20/20 | 78.5% |
+| Rsd | flores_hi | confidence_cut | 1.30 | 72.6 / 64.9 / 65.8% | ×1.09 | 83.0% | 20/20 | 76.4% |
+| Rsd_s43 | flores_hi | confidence_cut | 1.31 | 71.3 / 67.6 / 72.6% | ×1.10 | 82.5% | 20/20 | 76.6% |
+
+Greedy baseline: 27.6-27.8 tok/s on every run.
+
+- **Rsd is the fastest run: ×1.32-1.36 on T4** (vs ×1.12-1.15 for R2/R3), 1.60-1.67 tokens/step. It matches Jainam's 100-prompt check (1.649 tokens/step); his 1.53× was fp32 on an RTX 4060, where the verify pass is relatively cheaper.
+- **Replicate agrees:** Rsd_s43 is within 0.01-0.02 tokens/step and ±0.01 speed-up of Rsd on both sets.
+- **Far heads are where it gains:** h2 / h3 acceptance 17 / 9% vs R2's 7 / 2%.
+- **Correctness:** fp32 re-check 20/20 for every Rsd policy and dataset; fp16 divergences only at near-ties (margin ≤ 0.0156).
+- ConfidenceCut is now faster than greedy (×1.09-1.14) but still behind FixedK, consistent with dropping stop-early policies (#33).
+
+## Verify-pass cost on T4 (`bench_verify`, issue #33)
+
+One forward pass of the MTP model (all heads) scoring N positions after a 64-token prompt, KV cache rolled back after each pass. Median of 20 repeats; fp32 weights + fp16 autocast. Greedy = base LM scoring 1 position.
+
+| positions | 1 | 4 | 8 | 16 | 25 | 32 | 64 |
+|---|---|---|---|---|---|---|---|
+| R2 (ms) | 41.9 | 42.9 | 43.1 | 44.1 | 45.6 | 45.8 | 47.1 |
+| Rsd (ms) | 41.6 | 42.6 | 43.0 | 43.8 | 45.3 | 45.5 | 46.5 |
+| Rsd_s43 (ms) | 41.4 | 42.5 | 42.8 | 43.7 | 45.1 | 45.2 | 46.2 |
+| × greedy pass (Rsd) | 1.17 | 1.20 | 1.21 | 1.23 | 1.27 | 1.27 | 1.30 |
+
+Greedy pass: 35.4-35.7 ms.
+
+- **At batch 1 the T4 is memory-bound:** scoring 25 positions costs 9% more than scoring 1, and 64 positions costs 12% more. Tree size is not the constraint up to 64 nodes. The fixed cost is the extra heads: 1 position is already ×1.17 greedy.
+- **The model predicts the measured chain speed-up:** Rsd chain = 1.67 tokens/step ÷ 1.20 (4 positions) = ×1.39, against ×1.36 measured (the rest is drafting overhead). On the same model, Jainam's offline 25-node tree (2.51 tokens/step, #33) ÷ 1.27 gives a **×1.98 ceiling** for `generate_tree()` on T4.
+

@@ -1,0 +1,113 @@
+{
+  "run_name": "Rsd_hi_k4_frozen_sd_s43",
+  "dataset": "flores_hi",
+  "step": 12500,
+  "grouper": "hi_rules_v0",
+  "git_commit": "a4f1ff426c32f90e58b84cdbfae6ae6942eabf76",
+  "per_head": [
+    {
+      "head": 0,
+      "loss": 3.984417965523841,
+      "ppl": 53.75399369359962,
+      "top1": 0.2986099193409988,
+      "top5": 0.5380470224815515,
+      "n": 29135,
+      "top1_in_group": 0.43464852607709753,
+      "loss_in_group": 2.3349338211440176,
+      "n_in_group": 11025,
+      "top1_at_boundary": 0.2157923799006074,
+      "loss_at_boundary": 4.988590345377425,
+      "n_at_boundary": 18110
+    },
+    {
+      "head": 1,
+      "loss": 6.908302443043519,
+      "ppl": 1000.5473137829433,
+      "top1": 0.08533940191302493,
+      "top5": 0.2201756569356043,
+      "n": 28123,
+      "top1_in_group": 0.09082156611039795,
+      "loss_in_group": 6.44896134179425,
+      "n_in_group": 3116,
+      "top1_at_boundary": 0.08465629623705362,
+      "loss_at_boundary": 6.965538631116881,
+      "n_at_boundary": 25007
+    },
+    {
+      "head": 2,
+      "loss": 7.580313422495136,
+      "ppl": 1959.2429399771363,
+      "top1": 0.044262476485559366,
+      "top5": 0.14075467522407878,
+      "n": 27111,
+      "top1_in_group": 0.05946481665014866,
+      "loss_in_group": 6.966486315070342,
+      "n_in_group": 1009,
+      "top1_at_boundary": 0.04367481419048349,
+      "loss_at_boundary": 7.604041530020748,
+      "n_at_boundary": 26102
+    },
+    {
+      "head": 3,
+      "loss": 7.822111600038855,
+      "ppl": 2495.168647373353,
+      "top1": 0.029196520939499596,
+      "top5": 0.1125330472431894,
+      "n": 26099,
+      "top1_in_group": 0.050335570469798654,
+      "loss_in_group": 6.991354414280629,
+      "n_in_group": 298,
+      "top1_at_boundary": 0.028952366187357078,
+      "loss_at_boundary": 7.831706789749398,
+      "n_at_boundary": 25801
+    }
+  ],
+  "spec_decode": [
+    {
+      "policy": "fixed_k",
+      "mean_accepted_len": 1.6157535975763695,
+      "accept_rate_per_head": [
+        0.3959533871174286,
+        0.15665152498377677,
+        0.07619423608369523
+      ],
+      "tokens_per_sec": 36.758452451246995,
+      "greedy_tokens_per_sec": 27.679268850236443,
+      "speedup": 1.3280138521770597,
+      "outputs_match_greedy": false,
+      "match_rate": 0.825,
+      "max_mismatch_margin": 0.015625,
+      "fp32_check": {
+        "n_prompts": 20,
+        "match_rate": 1.0,
+        "outputs_match_greedy": true,
+        "max_mismatch_margin": null
+      },
+      "group_integrity": 0.7850249584026622,
+      "n_prompts": 200
+    },
+    {
+      "policy": "confidence_cut",
+      "mean_accepted_len": 1.308392108760094,
+      "accept_rate_per_head": [
+        0.7130606860158312,
+        0.6755555555555556,
+        0.7264705882352941
+      ],
+      "tokens_per_sec": 30.313119961857158,
+      "greedy_tokens_per_sec": 27.679268850236443,
+      "speedup": 1.09515609411042,
+      "outputs_match_greedy": false,
+      "match_rate": 0.825,
+      "max_mismatch_margin": 0.015625,
+      "fp32_check": {
+        "n_prompts": 20,
+        "match_rate": 1.0,
+        "outputs_match_greedy": true,
+        "max_mismatch_margin": null
+      },
+      "group_integrity": 0.7662835249042146,
+      "n_prompts": 200
+    }
+  ]
+}
