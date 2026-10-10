@@ -1,0 +1,112 @@
+{
+  "official_gold": false,
+  "complete_gold": true,
+  "scores": {
+    "mr_rules_v1": {
+      "boundary": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "tp": 121,
+        "fp": 0,
+        "fn": 0
+      },
+      "exact_group_accuracy": 1.0,
+      "sentence_exact_accuracy": 1.0,
+      "n_sentences": 150,
+      "n_gold_groups": 2039,
+      "per_type": {
+        "single": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1919,
+          "fp": 0,
+          "fn": 0
+        },
+        "aux_chain": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 92,
+          "fp": 0,
+          "fn": 0
+        },
+        "postposition": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 27,
+          "fp": 0,
+          "fn": 0
+        },
+        "light_verb": {
+          "precision": 1.0,
+          "recall": 1.0,
+          "f1": 1.0,
+          "tp": 1,
+          "fp": 0,
+          "fn": 0
+        }
+      }
+    },
+    "random_mr_v1": {
+      "boundary": {
+        "precision": 0.0392156862745098,
+        "recall": 0.03305785123966942,
+        "f1": 0.03587443946188341,
+        "tp": 4,
+        "fp": 98,
+        "fn": 117
+      },
+      "exact_group_accuracy": 0.8528690534575772,
+      "sentence_exact_accuracy": 0.3,
+      "n_sentences": 150,
+      "n_gold_groups": 2039,
+      "per_type": {
+        "other": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 2058,
+          "fn": 0
+        },
+        "single": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 1919
+        },
+        "aux_chain": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 92
+        },
+        "postposition": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 27
+        },
+        "light_verb": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 1
+        }
+      }
+    }
+  },
+  "agreement": null,
+  "best_by_boundary_f1": null
+}

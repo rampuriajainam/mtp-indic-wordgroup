@@ -1,0 +1,2597 @@
+[
+  {
+    "grouper": "words",
+    "tokenizer": "LingoIITGN/ganga-1b",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 280928,
+    "n_tokens": 315119,
+    "words_per_group": 1.0,
+    "tokens_per_group": 1.1217073413828453,
+    "tokens_per_word": 1.1217073413828453,
+    "pct_words_attached": 0.0,
+    "same_group_rate": {
+      "1": 0.11025122614222282,
+      "2": 0.0394403495029808,
+      "3": 0.013570785992736482,
+      "4": 0.005054868359979808
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 34191,
+        "total": 310119
+      },
+      "2": {
+        "same": 12034,
+        "total": 305119
+      },
+      "3": {
+        "same": 4073,
+        "total": 300130
+      },
+      "4": {
+        "same": 1492,
+        "total": 295161
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": []
+  },
+  {
+    "grouper": "hi_rules_v0",
+    "tokenizer": "LingoIITGN/ganga-1b",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 211477,
+    "n_tokens": 315119,
+    "words_per_group": 1.3284092359925666,
+    "tokens_per_group": 1.4900863923736387,
+    "tokens_per_word": 1.1217073413828453,
+    "pct_words_attached": 24.72199282378403,
+    "same_group_rate": {
+      "1": 0.3342007422956994,
+      "2": 0.07768772183967566,
+      "3": 0.024342784793256255,
+      "4": 0.00807355985377472
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 103642,
+        "total": 310119
+      },
+      "2": {
+        "same": 23704,
+        "total": 305119
+      },
+      "3": {
+        "same": 7306,
+        "total": 300130
+      },
+      "4": {
+        "same": 2383,
+        "total": 295161
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "करने के",
+        "count": 302
+      },
+      {
+        "text": "लोगों को",
+        "count": 205
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 197
+      },
+      {
+        "text": "बारे में",
+        "count": 186
+      },
+      {
+        "text": "करने की",
+        "count": 169
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 135
+      },
+      {
+        "text": "होने के",
+        "count": 131
+      },
+      {
+        "text": "मामले में",
+        "count": 126
+      },
+      {
+        "text": "करने का",
+        "count": 120
+      },
+      {
+        "text": "सरकार ने",
+        "count": 117
+      },
+      {
+        "text": "मौके पर",
+        "count": 114
+      },
+      {
+        "text": "ओर से",
+        "count": 111
+      },
+      {
+        "text": "लोगों ने",
+        "count": 111
+      },
+      {
+        "text": "जाता है।",
+        "count": 107
+      },
+      {
+        "text": "रूप में",
+        "count": 106
+      },
+      {
+        "text": "वजह से",
+        "count": 103
+      },
+      {
+        "text": "दिया है।",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 97
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "नहीं है।",
+        "count": 92
+      },
+      {
+        "text": "भारत में",
+        "count": 92
+      },
+      {
+        "text": "लोगों के",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 90
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "सिंह ने",
+        "count": 86
+      },
+      {
+        "text": "सरकार के",
+        "count": 83
+      }
+    ]
+  },
+  {
+    "grouper": "hi_rules_v1",
+    "tokenizer": "LingoIITGN/ganga-1b",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 199234,
+    "n_tokens": 315119,
+    "words_per_group": 1.4100404549424295,
+    "tokens_per_group": 1.5816527299557304,
+    "tokens_per_word": 1.1217073413828453,
+    "pct_words_attached": 29.0800489805217,
+    "same_group_rate": {
+      "1": 0.3736791360735718,
+      "2": 0.10467063670240136,
+      "3": 0.030533435511278444,
+      "4": 0.009618479406154607
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 115885,
+        "total": 310119
+      },
+      "2": {
+        "same": 31937,
+        "total": 305119
+      },
+      "3": {
+        "same": 9164,
+        "total": 300130
+      },
+      "4": {
+        "same": 2839,
+        "total": 295161
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "लोगों को",
+        "count": 198
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 195
+      },
+      {
+        "text": "करने के लिए",
+        "count": 189
+      },
+      {
+        "text": "करने की",
+        "count": 157
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 128
+      },
+      {
+        "text": "मामले में",
+        "count": 125
+      },
+      {
+        "text": "सरकार ने",
+        "count": 116
+      },
+      {
+        "text": "करने का",
+        "count": 110
+      },
+      {
+        "text": "लोगों ने",
+        "count": 106
+      },
+      {
+        "text": "मौके पर",
+        "count": 106
+      },
+      {
+        "text": "रूप में",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 92
+      },
+      {
+        "text": "नहीं है।",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 89
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "भारत में",
+        "count": 86
+      },
+      {
+        "text": "इसके लिए",
+        "count": 85
+      },
+      {
+        "text": "किसी भी",
+        "count": 85
+      },
+      {
+        "text": "सिंह ने",
+        "count": 84
+      },
+      {
+        "text": "अब तक",
+        "count": 79
+      },
+      {
+        "text": "कर दिया।",
+        "count": 77
+      },
+      {
+        "text": "क्षेत्र के",
+        "count": 77
+      },
+      {
+        "text": "तौर पर",
+        "count": 76
+      },
+      {
+        "text": "कहा है",
+        "count": 76
+      },
+      {
+        "text": "सरकार के",
+        "count": 74
+      }
+    ]
+  },
+  {
+    "grouper": "random_hi_v1",
+    "tokenizer": "LingoIITGN/ganga-1b",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 200440,
+    "n_tokens": 315119,
+    "words_per_group": 1.4015565755338255,
+    "tokens_per_group": 1.5721363001396926,
+    "tokens_per_word": 1.1217073413828453,
+    "pct_words_attached": 28.65075748946349,
+    "same_group_rate": {
+      "1": 0.3697903063017745,
+      "2": 0.12011706907796631,
+      "3": 0.0449638489987672,
+      "4": 0.018186684555208853
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 114679,
+        "total": 310119
+      },
+      "2": {
+        "same": 36650,
+        "total": 305119
+      },
+      "3": {
+        "same": 13495,
+        "total": 300130
+      },
+      "4": {
+        "same": 5368,
+        "total": 295161
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "के लिए",
+        "count": 336
+      },
+      {
+        "text": "है कि",
+        "count": 191
+      },
+      {
+        "text": "के बाद",
+        "count": 133
+      },
+      {
+        "text": "के साथ",
+        "count": 132
+      },
+      {
+        "text": "कहा कि",
+        "count": 130
+      },
+      {
+        "text": "ने कहा",
+        "count": 73
+      },
+      {
+        "text": "बताया कि",
+        "count": 71
+      },
+      {
+        "text": "गया है।",
+        "count": 68
+      },
+      {
+        "text": "है और",
+        "count": 67
+      },
+      {
+        "text": "रहा है।",
+        "count": 60
+      },
+      {
+        "text": "को लेकर",
+        "count": 60
+      },
+      {
+        "text": "करने के",
+        "count": 58
+      },
+      {
+        "text": "जा रहा",
+        "count": 57
+      },
+      {
+        "text": "के बीच",
+        "count": 52
+      },
+      {
+        "text": "रही है।",
+        "count": 48
+      },
+      {
+        "text": "लोगों को",
+        "count": 47
+      },
+      {
+        "text": "साथ ही",
+        "count": 45
+      },
+      {
+        "text": "में एक",
+        "count": 44
+      },
+      {
+        "text": "के दौरान",
+        "count": 43
+      },
+      {
+        "text": "रहे हैं।",
+        "count": 42
+      },
+      {
+        "text": "करने की",
+        "count": 41
+      },
+      {
+        "text": "ने बताया",
+        "count": 40
+      },
+      {
+        "text": "को भी",
+        "count": 37
+      },
+      {
+        "text": "के खिलाफ",
+        "count": 36
+      },
+      {
+        "text": "बारे में",
+        "count": 36
+      },
+      {
+        "text": "गई है।",
+        "count": 35
+      },
+      {
+        "text": "किया है।",
+        "count": 35
+      },
+      {
+        "text": "कर रहे",
+        "count": 34
+      },
+      {
+        "text": "उन्होंने कहा",
+        "count": 34
+      },
+      {
+        "text": "के बारे",
+        "count": 33
+      }
+    ]
+  },
+  {
+    "grouper": "words",
+    "tokenizer": "smallstepai/Misal-1B-instruct-v0.1",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 280928,
+    "n_tokens": 514199,
+    "words_per_group": 1.0,
+    "tokens_per_group": 1.830358668413259,
+    "tokens_per_word": 1.830358668413259,
+    "pct_words_attached": 0.0,
+    "same_group_rate": {
+      "1": 0.4581136255177249,
+      "2": 0.1774616768379152,
+      "3": 0.0585653531729577,
+      "4": 0.018463848290905263
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 233271,
+        "total": 509199
+      },
+      "2": {
+        "same": 89476,
+        "total": 504199
+      },
+      "3": {
+        "same": 29236,
+        "total": 499203
+      },
+      "4": {
+        "same": 9125,
+        "total": 494209
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": []
+  },
+  {
+    "grouper": "hi_rules_v0",
+    "tokenizer": "smallstepai/Misal-1B-instruct-v0.1",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 211477,
+    "n_tokens": 514199,
+    "words_per_group": 1.3284092359925666,
+    "tokens_per_group": 2.431465360299229,
+    "tokens_per_word": 1.830358668413259,
+    "pct_words_attached": 24.72199282378403,
+    "same_group_rate": {
+      "1": 0.5945062735786991,
+      "2": 0.2994631088121952,
+      "3": 0.13576841485327612,
+      "4": 0.05369388254766708
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 302722,
+        "total": 509199
+      },
+      "2": {
+        "same": 150989,
+        "total": 504199
+      },
+      "3": {
+        "same": 67776,
+        "total": 499203
+      },
+      "4": {
+        "same": 26536,
+        "total": 494209
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "करने के",
+        "count": 302
+      },
+      {
+        "text": "लोगों को",
+        "count": 205
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 197
+      },
+      {
+        "text": "बारे में",
+        "count": 186
+      },
+      {
+        "text": "करने की",
+        "count": 169
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 135
+      },
+      {
+        "text": "होने के",
+        "count": 131
+      },
+      {
+        "text": "मामले में",
+        "count": 126
+      },
+      {
+        "text": "करने का",
+        "count": 120
+      },
+      {
+        "text": "सरकार ने",
+        "count": 117
+      },
+      {
+        "text": "मौके पर",
+        "count": 114
+      },
+      {
+        "text": "ओर से",
+        "count": 111
+      },
+      {
+        "text": "लोगों ने",
+        "count": 111
+      },
+      {
+        "text": "जाता है।",
+        "count": 107
+      },
+      {
+        "text": "रूप में",
+        "count": 106
+      },
+      {
+        "text": "वजह से",
+        "count": 103
+      },
+      {
+        "text": "दिया है।",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 97
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "नहीं है।",
+        "count": 92
+      },
+      {
+        "text": "भारत में",
+        "count": 92
+      },
+      {
+        "text": "लोगों के",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 90
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "सिंह ने",
+        "count": 86
+      },
+      {
+        "text": "सरकार के",
+        "count": 83
+      }
+    ]
+  },
+  {
+    "grouper": "hi_rules_v1",
+    "tokenizer": "smallstepai/Misal-1B-instruct-v0.1",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 199234,
+    "n_tokens": 514199,
+    "words_per_group": 1.4100404549424295,
+    "tokens_per_group": 2.580879769517251,
+    "tokens_per_word": 1.830358668413259,
+    "pct_words_attached": 29.0800489805217,
+    "same_group_rate": {
+      "1": 0.6185499185976406,
+      "2": 0.3331978048349957,
+      "3": 0.1627053523316166,
+      "4": 0.06953738195783565
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 314965,
+        "total": 509199
+      },
+      "2": {
+        "same": 167998,
+        "total": 504199
+      },
+      "3": {
+        "same": 81223,
+        "total": 499203
+      },
+      "4": {
+        "same": 34366,
+        "total": 494209
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "लोगों को",
+        "count": 198
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 195
+      },
+      {
+        "text": "करने के लिए",
+        "count": 189
+      },
+      {
+        "text": "करने की",
+        "count": 157
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 128
+      },
+      {
+        "text": "मामले में",
+        "count": 125
+      },
+      {
+        "text": "सरकार ने",
+        "count": 116
+      },
+      {
+        "text": "करने का",
+        "count": 110
+      },
+      {
+        "text": "लोगों ने",
+        "count": 106
+      },
+      {
+        "text": "मौके पर",
+        "count": 106
+      },
+      {
+        "text": "रूप में",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 92
+      },
+      {
+        "text": "नहीं है।",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 89
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "भारत में",
+        "count": 86
+      },
+      {
+        "text": "इसके लिए",
+        "count": 85
+      },
+      {
+        "text": "किसी भी",
+        "count": 85
+      },
+      {
+        "text": "सिंह ने",
+        "count": 84
+      },
+      {
+        "text": "अब तक",
+        "count": 79
+      },
+      {
+        "text": "कर दिया।",
+        "count": 77
+      },
+      {
+        "text": "क्षेत्र के",
+        "count": 77
+      },
+      {
+        "text": "तौर पर",
+        "count": 76
+      },
+      {
+        "text": "कहा है",
+        "count": 76
+      },
+      {
+        "text": "सरकार के",
+        "count": 74
+      }
+    ]
+  },
+  {
+    "grouper": "random_hi_v1",
+    "tokenizer": "smallstepai/Misal-1B-instruct-v0.1",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 200440,
+    "n_tokens": 514199,
+    "words_per_group": 1.4015565755338255,
+    "tokens_per_group": 2.56535122729994,
+    "tokens_per_word": 1.830358668413259,
+    "pct_words_attached": 28.65075748946349,
+    "same_group_rate": {
+      "1": 0.6161814928937409,
+      "2": 0.3523509566659196,
+      "3": 0.18910944044807423,
+      "4": 0.09639039353795661
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 313759,
+        "total": 509199
+      },
+      "2": {
+        "same": 177655,
+        "total": 504199
+      },
+      "3": {
+        "same": 94404,
+        "total": 499203
+      },
+      "4": {
+        "same": 47637,
+        "total": 494209
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "के लिए",
+        "count": 336
+      },
+      {
+        "text": "है कि",
+        "count": 191
+      },
+      {
+        "text": "के बाद",
+        "count": 133
+      },
+      {
+        "text": "के साथ",
+        "count": 132
+      },
+      {
+        "text": "कहा कि",
+        "count": 130
+      },
+      {
+        "text": "ने कहा",
+        "count": 73
+      },
+      {
+        "text": "बताया कि",
+        "count": 71
+      },
+      {
+        "text": "गया है।",
+        "count": 68
+      },
+      {
+        "text": "है और",
+        "count": 67
+      },
+      {
+        "text": "रहा है।",
+        "count": 60
+      },
+      {
+        "text": "को लेकर",
+        "count": 60
+      },
+      {
+        "text": "करने के",
+        "count": 58
+      },
+      {
+        "text": "जा रहा",
+        "count": 57
+      },
+      {
+        "text": "के बीच",
+        "count": 52
+      },
+      {
+        "text": "रही है।",
+        "count": 48
+      },
+      {
+        "text": "लोगों को",
+        "count": 47
+      },
+      {
+        "text": "साथ ही",
+        "count": 45
+      },
+      {
+        "text": "में एक",
+        "count": 44
+      },
+      {
+        "text": "के दौरान",
+        "count": 43
+      },
+      {
+        "text": "रहे हैं।",
+        "count": 42
+      },
+      {
+        "text": "करने की",
+        "count": 41
+      },
+      {
+        "text": "ने बताया",
+        "count": 40
+      },
+      {
+        "text": "को भी",
+        "count": 37
+      },
+      {
+        "text": "के खिलाफ",
+        "count": 36
+      },
+      {
+        "text": "बारे में",
+        "count": 36
+      },
+      {
+        "text": "गई है।",
+        "count": 35
+      },
+      {
+        "text": "किया है।",
+        "count": 35
+      },
+      {
+        "text": "कर रहे",
+        "count": 34
+      },
+      {
+        "text": "उन्होंने कहा",
+        "count": 34
+      },
+      {
+        "text": "के बारे",
+        "count": 33
+      }
+    ]
+  },
+  {
+    "grouper": "words",
+    "tokenizer": "google/mt5-small",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 280928,
+    "n_tokens": 572484,
+    "words_per_group": 1.0,
+    "tokens_per_group": 2.037839011558163,
+    "tokens_per_word": 2.0378317576033718,
+    "pct_words_attached": 0.0,
+    "same_group_rate": {
+      "1": 0.5137713133762362,
+      "2": 0.17517653835486877,
+      "3": 0.04312410759770684,
+      "4": 0.010943243913431447
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 291557,
+        "total": 567484
+      },
+      "2": {
+        "same": 98534,
+        "total": 562484
+      },
+      "3": {
+        "same": 24041,
+        "total": 557484
+      },
+      "4": {
+        "same": 6046,
+        "total": 552487
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": []
+  },
+  {
+    "grouper": "hi_rules_v0",
+    "tokenizer": "google/mt5-small",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 211477,
+    "n_tokens": 572484,
+    "words_per_group": 1.3284092359925666,
+    "tokens_per_group": 2.7070873290586164,
+    "tokens_per_word": 2.0378317576033718,
+    "pct_words_attached": 24.72199282378403,
+    "same_group_rate": {
+      "1": 0.6361553805922282,
+      "2": 0.3111306277156328,
+      "3": 0.12263132215453718,
+      "4": 0.04028692077822646
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 361008,
+        "total": 567484
+      },
+      "2": {
+        "same": 175006,
+        "total": 562484
+      },
+      "3": {
+        "same": 68365,
+        "total": 557484
+      },
+      "4": {
+        "same": 22258,
+        "total": 552487
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "करने के",
+        "count": 302
+      },
+      {
+        "text": "लोगों को",
+        "count": 205
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 197
+      },
+      {
+        "text": "बारे में",
+        "count": 186
+      },
+      {
+        "text": "करने की",
+        "count": 169
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 135
+      },
+      {
+        "text": "होने के",
+        "count": 131
+      },
+      {
+        "text": "मामले में",
+        "count": 126
+      },
+      {
+        "text": "करने का",
+        "count": 120
+      },
+      {
+        "text": "सरकार ने",
+        "count": 117
+      },
+      {
+        "text": "मौके पर",
+        "count": 114
+      },
+      {
+        "text": "ओर से",
+        "count": 111
+      },
+      {
+        "text": "लोगों ने",
+        "count": 111
+      },
+      {
+        "text": "जाता है।",
+        "count": 107
+      },
+      {
+        "text": "रूप में",
+        "count": 106
+      },
+      {
+        "text": "वजह से",
+        "count": 103
+      },
+      {
+        "text": "दिया है।",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 97
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "नहीं है।",
+        "count": 92
+      },
+      {
+        "text": "भारत में",
+        "count": 92
+      },
+      {
+        "text": "लोगों के",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 90
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "सिंह ने",
+        "count": 86
+      },
+      {
+        "text": "सरकार के",
+        "count": 83
+      }
+    ]
+  },
+  {
+    "grouper": "hi_rules_v1",
+    "tokenizer": "google/mt5-small",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 199234,
+    "n_tokens": 572484,
+    "words_per_group": 1.4100404549424295,
+    "tokens_per_group": 2.8734396410233245,
+    "tokens_per_word": 2.0378317576033718,
+    "pct_words_attached": 29.0800489805217,
+    "same_group_rate": {
+      "1": 0.6577295571328883,
+      "2": 0.34709076169277703,
+      "3": 0.15444568812737228,
+      "4": 0.06078333064850395
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 373251,
+        "total": 567484
+      },
+      "2": {
+        "same": 195233,
+        "total": 562484
+      },
+      "3": {
+        "same": 86101,
+        "total": 557484
+      },
+      "4": {
+        "same": 33582,
+        "total": 552487
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "लोगों को",
+        "count": 198
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 195
+      },
+      {
+        "text": "करने के लिए",
+        "count": 189
+      },
+      {
+        "text": "करने की",
+        "count": 157
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 128
+      },
+      {
+        "text": "मामले में",
+        "count": 125
+      },
+      {
+        "text": "सरकार ने",
+        "count": 116
+      },
+      {
+        "text": "करने का",
+        "count": 110
+      },
+      {
+        "text": "लोगों ने",
+        "count": 106
+      },
+      {
+        "text": "मौके पर",
+        "count": 106
+      },
+      {
+        "text": "रूप में",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 92
+      },
+      {
+        "text": "नहीं है।",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 89
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "भारत में",
+        "count": 86
+      },
+      {
+        "text": "इसके लिए",
+        "count": 85
+      },
+      {
+        "text": "किसी भी",
+        "count": 85
+      },
+      {
+        "text": "सिंह ने",
+        "count": 84
+      },
+      {
+        "text": "अब तक",
+        "count": 79
+      },
+      {
+        "text": "कर दिया।",
+        "count": 77
+      },
+      {
+        "text": "क्षेत्र के",
+        "count": 77
+      },
+      {
+        "text": "तौर पर",
+        "count": 76
+      },
+      {
+        "text": "कहा है",
+        "count": 76
+      },
+      {
+        "text": "सरकार के",
+        "count": 74
+      }
+    ]
+  },
+  {
+    "grouper": "random_hi_v1",
+    "tokenizer": "google/mt5-small",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 200440,
+    "n_tokens": 572484,
+    "words_per_group": 1.4015565755338255,
+    "tokens_per_group": 2.856150749105713,
+    "tokens_per_word": 2.0378317576033718,
+    "pct_words_attached": 28.65075748946349,
+    "same_group_rate": {
+      "1": 0.6556043870840411,
+      "2": 0.37800364099245487,
+      "3": 0.2032076256897059,
+      "4": 0.10418344685033314
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 372045,
+        "total": 567484
+      },
+      "2": {
+        "same": 212621,
+        "total": 562484
+      },
+      "3": {
+        "same": 113285,
+        "total": 557484
+      },
+      "4": {
+        "same": 57560,
+        "total": 552487
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "के लिए",
+        "count": 336
+      },
+      {
+        "text": "है कि",
+        "count": 191
+      },
+      {
+        "text": "के बाद",
+        "count": 133
+      },
+      {
+        "text": "के साथ",
+        "count": 132
+      },
+      {
+        "text": "कहा कि",
+        "count": 130
+      },
+      {
+        "text": "ने कहा",
+        "count": 73
+      },
+      {
+        "text": "बताया कि",
+        "count": 71
+      },
+      {
+        "text": "गया है।",
+        "count": 68
+      },
+      {
+        "text": "है और",
+        "count": 67
+      },
+      {
+        "text": "रहा है।",
+        "count": 60
+      },
+      {
+        "text": "को लेकर",
+        "count": 60
+      },
+      {
+        "text": "करने के",
+        "count": 58
+      },
+      {
+        "text": "जा रहा",
+        "count": 57
+      },
+      {
+        "text": "के बीच",
+        "count": 52
+      },
+      {
+        "text": "रही है।",
+        "count": 48
+      },
+      {
+        "text": "लोगों को",
+        "count": 47
+      },
+      {
+        "text": "साथ ही",
+        "count": 45
+      },
+      {
+        "text": "में एक",
+        "count": 44
+      },
+      {
+        "text": "के दौरान",
+        "count": 43
+      },
+      {
+        "text": "रहे हैं।",
+        "count": 42
+      },
+      {
+        "text": "करने की",
+        "count": 41
+      },
+      {
+        "text": "ने बताया",
+        "count": 40
+      },
+      {
+        "text": "को भी",
+        "count": 37
+      },
+      {
+        "text": "के खिलाफ",
+        "count": 36
+      },
+      {
+        "text": "बारे में",
+        "count": 36
+      },
+      {
+        "text": "गई है।",
+        "count": 35
+      },
+      {
+        "text": "किया है।",
+        "count": 35
+      },
+      {
+        "text": "कर रहे",
+        "count": 34
+      },
+      {
+        "text": "उन्होंने कहा",
+        "count": 34
+      },
+      {
+        "text": "के बारे",
+        "count": 33
+      }
+    ]
+  },
+  {
+    "grouper": "words",
+    "tokenizer": "bigscience/bloom-560m",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 280928,
+    "n_tokens": 372598,
+    "words_per_group": 1.0,
+    "tokens_per_group": 1.326311368037362,
+    "tokens_per_word": 1.326311368037362,
+    "pct_words_attached": 0.0,
+    "same_group_rate": {
+      "1": 0.24937567669029756,
+      "2": 0.07515485468756034,
+      "3": 0.022024546911222284,
+      "4": 0.00683189123424964
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 91670,
+        "total": 367598
+      },
+      "2": {
+        "same": 27251,
+        "total": 362598
+      },
+      "3": {
+        "same": 7876,
+        "total": 357601
+      },
+      "4": {
+        "same": 2409,
+        "total": 352611
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": []
+  },
+  {
+    "grouper": "hi_rules_v0",
+    "tokenizer": "bigscience/bloom-560m",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 211477,
+    "n_tokens": 372598,
+    "words_per_group": 1.3284092359925666,
+    "tokens_per_group": 1.7618842711027676,
+    "tokens_per_word": 1.326311368037362,
+    "pct_words_attached": 24.72199282378403,
+    "same_group_rate": {
+      "1": 0.4383076077671805,
+      "2": 0.16478855371513357,
+      "3": 0.055794027421623545,
+      "4": 0.015572401314763295
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 161121,
+        "total": 367598
+      },
+      "2": {
+        "same": 59752,
+        "total": 362598
+      },
+      "3": {
+        "same": 19952,
+        "total": 357601
+      },
+      "4": {
+        "same": 5491,
+        "total": 352611
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "करने के",
+        "count": 302
+      },
+      {
+        "text": "लोगों को",
+        "count": 205
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 197
+      },
+      {
+        "text": "बारे में",
+        "count": 186
+      },
+      {
+        "text": "करने की",
+        "count": 169
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 135
+      },
+      {
+        "text": "होने के",
+        "count": 131
+      },
+      {
+        "text": "मामले में",
+        "count": 126
+      },
+      {
+        "text": "करने का",
+        "count": 120
+      },
+      {
+        "text": "सरकार ने",
+        "count": 117
+      },
+      {
+        "text": "मौके पर",
+        "count": 114
+      },
+      {
+        "text": "ओर से",
+        "count": 111
+      },
+      {
+        "text": "लोगों ने",
+        "count": 111
+      },
+      {
+        "text": "जाता है।",
+        "count": 107
+      },
+      {
+        "text": "रूप में",
+        "count": 106
+      },
+      {
+        "text": "वजह से",
+        "count": 103
+      },
+      {
+        "text": "दिया है।",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 97
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "नहीं है।",
+        "count": 92
+      },
+      {
+        "text": "भारत में",
+        "count": 92
+      },
+      {
+        "text": "लोगों के",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 90
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "सिंह ने",
+        "count": 86
+      },
+      {
+        "text": "सरकार के",
+        "count": 83
+      }
+    ]
+  },
+  {
+    "grouper": "hi_rules_v1",
+    "tokenizer": "bigscience/bloom-560m",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 199234,
+    "n_tokens": 372598,
+    "words_per_group": 1.4100404549424295,
+    "tokens_per_group": 1.870152684782718,
+    "tokens_per_word": 1.326311368037362,
+    "pct_words_attached": 29.0800489805217,
+    "same_group_rate": {
+      "1": 0.4716130120403267,
+      "2": 0.19070706402131285,
+      "3": 0.06773470991412217,
+      "4": 0.019826380912677143
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 173364,
+        "total": 367598
+      },
+      "2": {
+        "same": 69150,
+        "total": 362598
+      },
+      "3": {
+        "same": 24222,
+        "total": 357601
+      },
+      "4": {
+        "same": 6991,
+        "total": 352611
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "लोगों को",
+        "count": 198
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 195
+      },
+      {
+        "text": "करने के लिए",
+        "count": 189
+      },
+      {
+        "text": "करने की",
+        "count": 157
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 128
+      },
+      {
+        "text": "मामले में",
+        "count": 125
+      },
+      {
+        "text": "सरकार ने",
+        "count": 116
+      },
+      {
+        "text": "करने का",
+        "count": 110
+      },
+      {
+        "text": "लोगों ने",
+        "count": 106
+      },
+      {
+        "text": "मौके पर",
+        "count": 106
+      },
+      {
+        "text": "रूप में",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 92
+      },
+      {
+        "text": "नहीं है।",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 89
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "भारत में",
+        "count": 86
+      },
+      {
+        "text": "इसके लिए",
+        "count": 85
+      },
+      {
+        "text": "किसी भी",
+        "count": 85
+      },
+      {
+        "text": "सिंह ने",
+        "count": 84
+      },
+      {
+        "text": "अब तक",
+        "count": 79
+      },
+      {
+        "text": "कर दिया।",
+        "count": 77
+      },
+      {
+        "text": "क्षेत्र के",
+        "count": 77
+      },
+      {
+        "text": "तौर पर",
+        "count": 76
+      },
+      {
+        "text": "कहा है",
+        "count": 76
+      },
+      {
+        "text": "सरकार के",
+        "count": 74
+      }
+    ]
+  },
+  {
+    "grouper": "random_hi_v1",
+    "tokenizer": "bigscience/bloom-560m",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 200440,
+    "n_tokens": 372598,
+    "words_per_group": 1.4015565755338255,
+    "tokens_per_group": 1.8589004190780283,
+    "tokens_per_word": 1.326311368037362,
+    "pct_words_attached": 28.65075748946349,
+    "same_group_rate": {
+      "1": 0.46833225425600794,
+      "2": 0.2021219091114678,
+      "3": 0.08505848697291114,
+      "4": 0.03588657188800123
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 172158,
+        "total": 367598
+      },
+      "2": {
+        "same": 73289,
+        "total": 362598
+      },
+      "3": {
+        "same": 30417,
+        "total": 357601
+      },
+      "4": {
+        "same": 12654,
+        "total": 352611
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "के लिए",
+        "count": 336
+      },
+      {
+        "text": "है कि",
+        "count": 191
+      },
+      {
+        "text": "के बाद",
+        "count": 133
+      },
+      {
+        "text": "के साथ",
+        "count": 132
+      },
+      {
+        "text": "कहा कि",
+        "count": 130
+      },
+      {
+        "text": "ने कहा",
+        "count": 73
+      },
+      {
+        "text": "बताया कि",
+        "count": 71
+      },
+      {
+        "text": "गया है।",
+        "count": 68
+      },
+      {
+        "text": "है और",
+        "count": 67
+      },
+      {
+        "text": "रहा है।",
+        "count": 60
+      },
+      {
+        "text": "को लेकर",
+        "count": 60
+      },
+      {
+        "text": "करने के",
+        "count": 58
+      },
+      {
+        "text": "जा रहा",
+        "count": 57
+      },
+      {
+        "text": "के बीच",
+        "count": 52
+      },
+      {
+        "text": "रही है।",
+        "count": 48
+      },
+      {
+        "text": "लोगों को",
+        "count": 47
+      },
+      {
+        "text": "साथ ही",
+        "count": 45
+      },
+      {
+        "text": "में एक",
+        "count": 44
+      },
+      {
+        "text": "के दौरान",
+        "count": 43
+      },
+      {
+        "text": "रहे हैं।",
+        "count": 42
+      },
+      {
+        "text": "करने की",
+        "count": 41
+      },
+      {
+        "text": "ने बताया",
+        "count": 40
+      },
+      {
+        "text": "को भी",
+        "count": 37
+      },
+      {
+        "text": "के खिलाफ",
+        "count": 36
+      },
+      {
+        "text": "बारे में",
+        "count": 36
+      },
+      {
+        "text": "गई है।",
+        "count": 35
+      },
+      {
+        "text": "किया है।",
+        "count": 35
+      },
+      {
+        "text": "कर रहे",
+        "count": 34
+      },
+      {
+        "text": "उन्होंने कहा",
+        "count": 34
+      },
+      {
+        "text": "के बारे",
+        "count": 33
+      }
+    ]
+  },
+  {
+    "grouper": "words",
+    "tokenizer": "xlm-roberta-base",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 280928,
+    "n_tokens": 404821,
+    "words_per_group": 1.0,
+    "tokens_per_group": 1.441018485229259,
+    "tokens_per_word": 1.4410133557352773,
+    "pct_words_attached": 0.0,
+    "same_group_rate": {
+      "1": 0.30987366846663883,
+      "2": 0.11611337796115201,
+      "3": 0.03757307728813038,
+      "4": 0.01171389817119753
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 123894,
+        "total": 399821
+      },
+      "2": {
+        "same": 45844,
+        "total": 394821
+      },
+      "3": {
+        "same": 14647,
+        "total": 389827
+      },
+      "4": {
+        "same": 4508,
+        "total": 384842
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": []
+  },
+  {
+    "grouper": "hi_rules_v0",
+    "tokenizer": "xlm-roberta-base",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 211477,
+    "n_tokens": 404821,
+    "words_per_group": 1.3284092359925666,
+    "tokens_per_group": 1.914264502827744,
+    "tokens_per_word": 1.4410133557352773,
+    "pct_words_attached": 24.72199282378403,
+    "same_group_rate": {
+      "1": 0.4835789015584474,
+      "2": 0.213567667373316,
+      "3": 0.08171060496066204,
+      "4": 0.025363655734041504
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 193345,
+        "total": 399821
+      },
+      "2": {
+        "same": 84321,
+        "total": 394821
+      },
+      "3": {
+        "same": 31853,
+        "total": 389827
+      },
+      "4": {
+        "same": 9761,
+        "total": 384842
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "करने के",
+        "count": 302
+      },
+      {
+        "text": "लोगों को",
+        "count": 205
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 197
+      },
+      {
+        "text": "बारे में",
+        "count": 186
+      },
+      {
+        "text": "करने की",
+        "count": 169
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 135
+      },
+      {
+        "text": "होने के",
+        "count": 131
+      },
+      {
+        "text": "मामले में",
+        "count": 126
+      },
+      {
+        "text": "करने का",
+        "count": 120
+      },
+      {
+        "text": "सरकार ने",
+        "count": 117
+      },
+      {
+        "text": "मौके पर",
+        "count": 114
+      },
+      {
+        "text": "ओर से",
+        "count": 111
+      },
+      {
+        "text": "लोगों ने",
+        "count": 111
+      },
+      {
+        "text": "जाता है।",
+        "count": 107
+      },
+      {
+        "text": "रूप में",
+        "count": 106
+      },
+      {
+        "text": "वजह से",
+        "count": 103
+      },
+      {
+        "text": "दिया है।",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 97
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "नहीं है।",
+        "count": 92
+      },
+      {
+        "text": "भारत में",
+        "count": 92
+      },
+      {
+        "text": "लोगों के",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 90
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "सिंह ने",
+        "count": 86
+      },
+      {
+        "text": "सरकार के",
+        "count": 83
+      }
+    ]
+  },
+  {
+    "grouper": "hi_rules_v1",
+    "tokenizer": "xlm-roberta-base",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 199234,
+    "n_tokens": 404821,
+    "words_per_group": 1.4100404549424295,
+    "tokens_per_group": 2.031897326246154,
+    "tokens_per_word": 1.4410133557352773,
+    "pct_words_attached": 29.0800489805217,
+    "same_group_rate": {
+      "1": 0.5142001045467847,
+      "2": 0.23827759921584718,
+      "3": 0.0948728538556847,
+      "4": 0.031041310459877042
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 205588,
+        "total": 399821
+      },
+      "2": {
+        "same": 94077,
+        "total": 394821
+      },
+      "3": {
+        "same": 36984,
+        "total": 389827
+      },
+      "4": {
+        "same": 11946,
+        "total": 384842
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "लोगों को",
+        "count": 198
+      },
+      {
+        "text": "पुलिस ने",
+        "count": 195
+      },
+      {
+        "text": "करने के लिए",
+        "count": 189
+      },
+      {
+        "text": "करने की",
+        "count": 157
+      },
+      {
+        "text": "रूप से",
+        "count": 136
+      },
+      {
+        "text": "किया है।",
+        "count": 128
+      },
+      {
+        "text": "मामले में",
+        "count": 125
+      },
+      {
+        "text": "सरकार ने",
+        "count": 116
+      },
+      {
+        "text": "करने का",
+        "count": 110
+      },
+      {
+        "text": "लोगों ने",
+        "count": 106
+      },
+      {
+        "text": "मौके पर",
+        "count": 106
+      },
+      {
+        "text": "रूप में",
+        "count": 102
+      },
+      {
+        "text": "कहना है",
+        "count": 101
+      },
+      {
+        "text": "जा रहा है।",
+        "count": 98
+      },
+      {
+        "text": "लोगों की",
+        "count": 95
+      },
+      {
+        "text": "ऐसे में",
+        "count": 93
+      },
+      {
+        "text": "क्षेत्र में",
+        "count": 92
+      },
+      {
+        "text": "नहीं है।",
+        "count": 91
+      },
+      {
+        "text": "किया गया।",
+        "count": 89
+      },
+      {
+        "text": "जिले में",
+        "count": 88
+      },
+      {
+        "text": "भारत में",
+        "count": 86
+      },
+      {
+        "text": "इसके लिए",
+        "count": 85
+      },
+      {
+        "text": "किसी भी",
+        "count": 85
+      },
+      {
+        "text": "सिंह ने",
+        "count": 84
+      },
+      {
+        "text": "अब तक",
+        "count": 79
+      },
+      {
+        "text": "कर दिया।",
+        "count": 77
+      },
+      {
+        "text": "क्षेत्र के",
+        "count": 77
+      },
+      {
+        "text": "तौर पर",
+        "count": 76
+      },
+      {
+        "text": "कहा है",
+        "count": 76
+      },
+      {
+        "text": "सरकार के",
+        "count": 74
+      }
+    ]
+  },
+  {
+    "grouper": "random_hi_v1",
+    "tokenizer": "xlm-roberta-base",
+    "n_sentences": 5000,
+    "n_words": 280928,
+    "n_groups": 200440,
+    "n_tokens": 404821,
+    "words_per_group": 1.4015565755338255,
+    "tokens_per_group": 2.0196718203543225,
+    "tokens_per_word": 1.4410133557352773,
+    "pct_words_attached": 28.65075748946349,
+    "same_group_rate": {
+      "1": 0.5111837547302418,
+      "2": 0.2512353699524595,
+      "3": 0.119440161917979,
+      "4": 0.055425343387675984
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 204382,
+        "total": 399821
+      },
+      "2": {
+        "same": 99193,
+        "total": 394821
+      },
+      "3": {
+        "same": 46561,
+        "total": 389827
+      },
+      "4": {
+        "same": 21330,
+        "total": 384842
+      }
+    },
+    "sentence_sha256": "87d5e12c8bc7c77bf685f11987fcd94ae8b39a4de5b91d0700cff14ff75261f6",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "के लिए",
+        "count": 336
+      },
+      {
+        "text": "है कि",
+        "count": 191
+      },
+      {
+        "text": "के बाद",
+        "count": 133
+      },
+      {
+        "text": "के साथ",
+        "count": 132
+      },
+      {
+        "text": "कहा कि",
+        "count": 130
+      },
+      {
+        "text": "ने कहा",
+        "count": 73
+      },
+      {
+        "text": "बताया कि",
+        "count": 71
+      },
+      {
+        "text": "गया है।",
+        "count": 68
+      },
+      {
+        "text": "है और",
+        "count": 67
+      },
+      {
+        "text": "रहा है।",
+        "count": 60
+      },
+      {
+        "text": "को लेकर",
+        "count": 60
+      },
+      {
+        "text": "करने के",
+        "count": 58
+      },
+      {
+        "text": "जा रहा",
+        "count": 57
+      },
+      {
+        "text": "के बीच",
+        "count": 52
+      },
+      {
+        "text": "रही है।",
+        "count": 48
+      },
+      {
+        "text": "लोगों को",
+        "count": 47
+      },
+      {
+        "text": "साथ ही",
+        "count": 45
+      },
+      {
+        "text": "में एक",
+        "count": 44
+      },
+      {
+        "text": "के दौरान",
+        "count": 43
+      },
+      {
+        "text": "रहे हैं।",
+        "count": 42
+      },
+      {
+        "text": "करने की",
+        "count": 41
+      },
+      {
+        "text": "ने बताया",
+        "count": 40
+      },
+      {
+        "text": "को भी",
+        "count": 37
+      },
+      {
+        "text": "के खिलाफ",
+        "count": 36
+      },
+      {
+        "text": "बारे में",
+        "count": 36
+      },
+      {
+        "text": "गई है।",
+        "count": 35
+      },
+      {
+        "text": "किया है।",
+        "count": 35
+      },
+      {
+        "text": "कर रहे",
+        "count": 34
+      },
+      {
+        "text": "उन्होंने कहा",
+        "count": 34
+      },
+      {
+        "text": "के बारे",
+        "count": 33
+      }
+    ]
+  }
+]

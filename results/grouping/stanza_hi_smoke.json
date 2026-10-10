@@ -1,0 +1,87 @@
+{
+  "backend": "stanza",
+  "n_sentences": 3,
+  "rows": [
+    {
+      "text": "मैं कल बाजार जा रहा था।",
+      "groups": [
+        [
+          "मैं"
+        ],
+        [
+          "कल"
+        ],
+        [
+          "बाजार"
+        ],
+        [
+          "जा",
+          "रहा",
+          "था।"
+        ]
+      ],
+      "types": [
+        "single",
+        "single",
+        "single",
+        "aux_chain"
+      ]
+    },
+    {
+      "text": "वह घर के बारे में बात कर रहा है",
+      "groups": [
+        [
+          "वह"
+        ],
+        [
+          "घर",
+          "के",
+          "बारे",
+          "में"
+        ],
+        [
+          "बात"
+        ],
+        [
+          "कर",
+          "रहा",
+          "है"
+        ]
+      ],
+      "types": [
+        "single",
+        "postposition",
+        "single",
+        "aux_chain"
+      ]
+    },
+    {
+      "text": "उसने किताब पढ़ ली है।",
+      "groups": [
+        [
+          "उसने"
+        ],
+        [
+          "किताब"
+        ],
+        [
+          "पढ़"
+        ],
+        [
+          "ली"
+        ],
+        [
+          "है।"
+        ]
+      ],
+      "types": [
+        "single",
+        "single",
+        "single",
+        "single",
+        "single"
+      ]
+    }
+  ],
+  "scope": "parser smoke, not gold evaluation"
+}

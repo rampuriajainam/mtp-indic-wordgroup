@@ -24,3 +24,10 @@
 ## How the team likes to work
 - Terse answers. Verify against the actual code before suggesting changes.
 - For design tasks marked "argue first" in a task file, discuss the design before writing code.
+
+## Latest Jai/teammate handoff (2026-10-10)
+- Read `docs/JAI_HANDOFF.md` first for actual completion status and priority. The latest teammate sync supersedes the earlier PDF phase ordering for this work.
+- JI-4 files and R6a are teammate-owned and preserved. Retain the original `random` registry line when adding Jai's grouper entries.
+- Hindi/Marathi v1 are implemented. `random_hi_v1` / `random_mr_v1` are opt-in refitted controls; old configs are unchanged.
+- Annotation packets/drafts are not gold. Send Om only `data/annotation/hi_om50_text_only.jsonl`; no messages were automatically sent. Human gold, κ, the full ganga C5 study and final grouper choice remain pending.
+- `legacy/validate_on_real_data.py` contains saved expanded lists but no real-corpus validation; its compound set is unused.

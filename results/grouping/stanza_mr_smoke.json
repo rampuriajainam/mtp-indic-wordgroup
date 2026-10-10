@@ -1,0 +1,63 @@
+{
+  "backend": "stanza",
+  "n_sentences": 3,
+  "rows": [
+    {
+      "text": "मी घरी जात आहे।",
+      "groups": [
+        [
+          "मी"
+        ],
+        [
+          "घरी"
+        ],
+        [
+          "जात",
+          "आहे।"
+        ]
+      ],
+      "types": [
+        "single",
+        "single",
+        "aux_chain"
+      ]
+    },
+    {
+      "text": "मुलं खेळत आहेत।",
+      "groups": [
+        [
+          "मुलं"
+        ],
+        [
+          "खेळत",
+          "आहेत।"
+        ]
+      ],
+      "types": [
+        "single",
+        "aux_chain"
+      ]
+    },
+    {
+      "text": "तो काम करू शकतो।",
+      "groups": [
+        [
+          "तो"
+        ],
+        [
+          "काम"
+        ],
+        [
+          "करू",
+          "शकतो।"
+        ]
+      ],
+      "types": [
+        "single",
+        "single",
+        "aux_chain"
+      ]
+    }
+  ],
+  "scope": "parser smoke, not gold evaluation"
+}

@@ -1,0 +1,10 @@
+# Extra dependencies for Jai's scripts. Install the team's existing requirements first.
+matplotlib>=3.8
+numpy>=1.26
+scikit-learn>=1.4
+sentencepiece>=0.2
+protobuf>=4
+# Optional parser backend (an explicit alternative to Trankit):
+stanza>=1.10,<2
+# Trankit is optional and may need a separate environment for its older adapter stack.
+# pip install trankit   # then select --groupers trankit

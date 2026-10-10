@@ -1,3 +1,5 @@
+> **Latest sync override (2026-10-10):** Jai's current priority is JI-1 → start JI-2 → JI-8 → JI-3/JI-5 → JI-10 → JI-7. JI-4 is already teammate-owned in this upload. See `docs/JAI_HANDOFF.md` for actual implementation/measurement status; human annotation, full C5 runs and final grouper scoring remain separate. The historical plan below is retained as research context, not a claim that these results are complete.
+
 # Team Plan (v2)
 
 **Word-Group Guided Multi-Token Prediction for Hindi and Marathi**

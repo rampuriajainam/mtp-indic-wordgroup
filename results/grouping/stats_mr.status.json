@@ -1,0 +1,16 @@
+{
+  "requested_pairs": 6,
+  "completed_pairs": 6,
+  "complete": true,
+  "requested_sentences": 5000,
+  "actual_sentences": 5000,
+  "tokenizers": [
+    "smallstepai/Misal-1B-instruct-v0.1",
+    "LingoIITGN/ganga-1b"
+  ],
+  "groupers": [
+    "words",
+    "mr_rules_v1",
+    "random_mr_v1"
+  ]
+}

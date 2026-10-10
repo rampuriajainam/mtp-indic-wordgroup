@@ -15,7 +15,13 @@ GROUP_TYPES = ("single", "aux_chain", "postposition", "compound_postposition", "
 REGISTRY = {
     "hi_rules_v0": "mtp.data.grouping.hindi_rules:HindiRuleGrouperV0",
     "random": "mtp.data.grouping.random_grouper:RandomGrouper",
-    # Jai adds: "hi_rules_v1", "mr_rules_v1", "trankit"
+    "hi_rules_v1": "mtp.data.grouping.hindi_rules:HindiRuleGrouperV1",
+    "mr_rules_v1": "mtp.data.grouping.marathi_rules:MarathiRuleGrouper",
+    "trankit": "mtp.data.grouping.trankit_grouper:TrankitGrouper",
+    "stanza": "mtp.data.grouping.trankit_grouper:StanzaGrouper",
+    "words": "mtp.data.grouping.words:WordGrouper",
+    "random_hi_v1": "mtp.data.grouping.random_refit:HindiV1RandomGrouper",
+    "random_mr_v1": "mtp.data.grouping.random_refit:MarathiV1RandomGrouper",
 }
 
 

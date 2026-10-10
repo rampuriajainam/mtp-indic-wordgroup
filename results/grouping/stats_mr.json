@@ -1,0 +1,720 @@
+[
+  {
+    "grouper": "words",
+    "tokenizer": "smallstepai/Misal-1B-instruct-v0.1",
+    "n_sentences": 5000,
+    "n_words": 207606,
+    "n_groups": 207606,
+    "n_tokens": 322132,
+    "words_per_group": 1.0,
+    "tokens_per_group": 1.551650723004152,
+    "tokens_per_word": 1.551650723004152,
+    "pct_words_attached": 0.0,
+    "same_group_rate": {
+      "1": 0.36113038104007167,
+      "2": 0.11730293593735984,
+      "3": 0.04163166702480254,
+      "4": 0.014868424536044264
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 114526,
+        "total": 317132
+      },
+      "2": {
+        "same": 36614,
+        "total": 312132
+      },
+      "3": {
+        "same": 12787,
+        "total": 307146
+      },
+      "4": {
+        "same": 4493,
+        "total": 302184
+      }
+    },
+    "sentence_sha256": "065488aa08de197b686aefabf750b8c6b58cd6dd2cdc68fc1c7c8a1b0eab11a0",
+    "max_length": null,
+    "top_multiword_groups": []
+  },
+  {
+    "grouper": "mr_rules_v1",
+    "tokenizer": "smallstepai/Misal-1B-instruct-v0.1",
+    "n_sentences": 5000,
+    "n_words": 207606,
+    "n_groups": 196433,
+    "n_tokens": 322132,
+    "words_per_group": 1.0568794448997878,
+    "tokens_per_group": 1.6399077548069825,
+    "tokens_per_word": 1.551650723004152,
+    "pct_words_attached": 5.381829041549859,
+    "same_group_rate": {
+      "1": 0.3963617673397828,
+      "2": 0.15084002921840758,
+      "3": 0.048533921978472776,
+      "4": 0.016754692505228604
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 125699,
+        "total": 317132
+      },
+      "2": {
+        "same": 47082,
+        "total": 312132
+      },
+      "3": {
+        "same": 14907,
+        "total": 307146
+      },
+      "4": {
+        "same": 5063,
+        "total": 302184
+      }
+    },
+    "sentence_sha256": "065488aa08de197b686aefabf750b8c6b58cd6dd2cdc68fc1c7c8a1b0eab11a0",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "केली आहे.",
+        "count": 178
+      },
+      {
+        "text": "आली आहे.",
+        "count": 146
+      },
+      {
+        "text": "केला आहे.",
+        "count": 119
+      },
+      {
+        "text": "झाली आहे.",
+        "count": 111
+      },
+      {
+        "text": "आले आहे.",
+        "count": 103
+      },
+      {
+        "text": "आला आहे.",
+        "count": 101
+      },
+      {
+        "text": "झाला आहे.",
+        "count": 99
+      },
+      {
+        "text": "केले आहे.",
+        "count": 95
+      },
+      {
+        "text": "जात आहे.",
+        "count": 92
+      },
+      {
+        "text": "केली होती.",
+        "count": 89
+      },
+      {
+        "text": "दिली आहे.",
+        "count": 77
+      },
+      {
+        "text": "होत आहे.",
+        "count": 73
+      },
+      {
+        "text": "येणार आहे.",
+        "count": 69
+      },
+      {
+        "text": "होणार आहे.",
+        "count": 67
+      },
+      {
+        "text": "झाले आहे.",
+        "count": 65
+      },
+      {
+        "text": "आले होते.",
+        "count": 55
+      },
+      {
+        "text": "केलं आहे.",
+        "count": 50
+      },
+      {
+        "text": "झाले आहेत.",
+        "count": 50
+      },
+      {
+        "text": "शक्यता आहे.",
+        "count": 50
+      },
+      {
+        "text": "आले आहेत.",
+        "count": 47
+      },
+      {
+        "text": "येत आहे.",
+        "count": 46
+      },
+      {
+        "text": "करत आहे.",
+        "count": 45
+      },
+      {
+        "text": "झाली होती.",
+        "count": 41
+      },
+      {
+        "text": "केला होता.",
+        "count": 40
+      },
+      {
+        "text": "दिला आहे.",
+        "count": 39
+      },
+      {
+        "text": "करत आहेत.",
+        "count": 39
+      },
+      {
+        "text": "झाले होते.",
+        "count": 38
+      },
+      {
+        "text": "झाला होता.",
+        "count": 37
+      },
+      {
+        "text": "दिसत आहे.",
+        "count": 36
+      },
+      {
+        "text": "आला होता.",
+        "count": 35
+      }
+    ]
+  },
+  {
+    "grouper": "random_mr_v1",
+    "tokenizer": "smallstepai/Misal-1B-instruct-v0.1",
+    "n_sentences": 5000,
+    "n_words": 207606,
+    "n_groups": 196724,
+    "n_tokens": 322132,
+    "words_per_group": 1.055316077346943,
+    "tokens_per_group": 1.6374819544132897,
+    "tokens_per_word": 1.551650723004152,
+    "pct_words_attached": 5.241659682282785,
+    "same_group_rate": {
+      "1": 0.39544416835891677,
+      "2": 0.14323106890674459,
+      "3": 0.054527814133994906,
+      "4": 0.021271807905117412
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 125408,
+        "total": 317132
+      },
+      "2": {
+        "same": 44707,
+        "total": 312132
+      },
+      "3": {
+        "same": 16748,
+        "total": 307146
+      },
+      "4": {
+        "same": 6428,
+        "total": 302184
+      }
+    },
+    "sentence_sha256": "065488aa08de197b686aefabf750b8c6b58cd6dd2cdc68fc1c7c8a1b0eab11a0",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "आहे. त्यामुळे",
+        "count": 12
+      },
+      {
+        "text": "पुन्हा एकदा",
+        "count": 8
+      },
+      {
+        "text": "आहे. या",
+        "count": 8
+      },
+      {
+        "text": "जात आहे.",
+        "count": 8
+      },
+      {
+        "text": "सोशल मीडियावर",
+        "count": 7
+      },
+      {
+        "text": "केला आहे.",
+        "count": 6
+      },
+      {
+        "text": "केली आहे.",
+        "count": 6
+      },
+      {
+        "text": "आहे. तर",
+        "count": 6
+      },
+      {
+        "text": "झाले आहेत.",
+        "count": 6
+      },
+      {
+        "text": "रुग्णांची संख्या",
+        "count": 5
+      },
+      {
+        "text": "करण्यात आली",
+        "count": 5
+      },
+      {
+        "text": "आले आहे.",
+        "count": 5
+      },
+      {
+        "text": "आहे असे",
+        "count": 5
+      },
+      {
+        "text": "झाला आहे.",
+        "count": 5
+      },
+      {
+        "text": "करण्यात आले",
+        "count": 4
+      },
+      {
+        "text": "आला आहे.",
+        "count": 4
+      },
+      {
+        "text": "होणार आहे.",
+        "count": 4
+      },
+      {
+        "text": "नाही तर",
+        "count": 4
+      },
+      {
+        "text": "केली जात",
+        "count": 4
+      },
+      {
+        "text": "आहे आणि",
+        "count": 4
+      },
+      {
+        "text": "येणार आहे.",
+        "count": 4
+      },
+      {
+        "text": "पंतप्रधान नरेंद्र",
+        "count": 4
+      },
+      {
+        "text": "होत आहे.",
+        "count": 4
+      },
+      {
+        "text": "होती. या",
+        "count": 4
+      },
+      {
+        "text": "करत आहेत.",
+        "count": 4
+      },
+      {
+        "text": "केले आहे.",
+        "count": 4
+      },
+      {
+        "text": "झाली आहे.",
+        "count": 3
+      },
+      {
+        "text": "आहेत. या",
+        "count": 3
+      },
+      {
+        "text": "घेण्यात आला.",
+        "count": 3
+      },
+      {
+        "text": "वाढत आहे.",
+        "count": 3
+      }
+    ]
+  },
+  {
+    "grouper": "words",
+    "tokenizer": "LingoIITGN/ganga-1b",
+    "n_sentences": 5000,
+    "n_words": 207606,
+    "n_groups": 207606,
+    "n_tokens": 509688,
+    "words_per_group": 1.0,
+    "tokens_per_group": 2.455073552787492,
+    "tokens_per_word": 2.455073552787492,
+    "pct_words_attached": 0.0,
+    "same_group_rate": {
+      "1": 0.5985519766667723,
+      "2": 0.30826035446118377,
+      "3": 0.12433847460025471,
+      "4": 0.0448705120298633
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 302082,
+        "total": 504688
+      },
+      "2": {
+        "same": 154034,
+        "total": 499688
+      },
+      "3": {
+        "same": 61509,
+        "total": 494690
+      },
+      "4": {
+        "same": 21973,
+        "total": 489698
+      }
+    },
+    "sentence_sha256": "065488aa08de197b686aefabf750b8c6b58cd6dd2cdc68fc1c7c8a1b0eab11a0",
+    "max_length": null,
+    "top_multiword_groups": []
+  },
+  {
+    "grouper": "mr_rules_v1",
+    "tokenizer": "LingoIITGN/ganga-1b",
+    "n_sentences": 5000,
+    "n_words": 207606,
+    "n_groups": 196433,
+    "n_tokens": 509688,
+    "words_per_group": 1.0568794448997878,
+    "tokens_per_group": 2.594716773658194,
+    "tokens_per_word": 2.455073552787492,
+    "pct_words_attached": 5.381829041549859,
+    "same_group_rate": {
+      "1": 0.6206904067463462,
+      "2": 0.3419093514352956,
+      "3": 0.15766237441630113,
+      "4": 0.06304497874200017
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 313255,
+        "total": 504688
+      },
+      "2": {
+        "same": 170848,
+        "total": 499688
+      },
+      "3": {
+        "same": 77994,
+        "total": 494690
+      },
+      "4": {
+        "same": 30873,
+        "total": 489698
+      }
+    },
+    "sentence_sha256": "065488aa08de197b686aefabf750b8c6b58cd6dd2cdc68fc1c7c8a1b0eab11a0",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "केली आहे.",
+        "count": 178
+      },
+      {
+        "text": "आली आहे.",
+        "count": 146
+      },
+      {
+        "text": "केला आहे.",
+        "count": 119
+      },
+      {
+        "text": "झाली आहे.",
+        "count": 111
+      },
+      {
+        "text": "आले आहे.",
+        "count": 103
+      },
+      {
+        "text": "आला आहे.",
+        "count": 101
+      },
+      {
+        "text": "झाला आहे.",
+        "count": 99
+      },
+      {
+        "text": "केले आहे.",
+        "count": 95
+      },
+      {
+        "text": "जात आहे.",
+        "count": 92
+      },
+      {
+        "text": "केली होती.",
+        "count": 89
+      },
+      {
+        "text": "दिली आहे.",
+        "count": 77
+      },
+      {
+        "text": "होत आहे.",
+        "count": 73
+      },
+      {
+        "text": "येणार आहे.",
+        "count": 69
+      },
+      {
+        "text": "होणार आहे.",
+        "count": 67
+      },
+      {
+        "text": "झाले आहे.",
+        "count": 65
+      },
+      {
+        "text": "आले होते.",
+        "count": 55
+      },
+      {
+        "text": "केलं आहे.",
+        "count": 50
+      },
+      {
+        "text": "झाले आहेत.",
+        "count": 50
+      },
+      {
+        "text": "शक्यता आहे.",
+        "count": 50
+      },
+      {
+        "text": "आले आहेत.",
+        "count": 47
+      },
+      {
+        "text": "येत आहे.",
+        "count": 46
+      },
+      {
+        "text": "करत आहे.",
+        "count": 45
+      },
+      {
+        "text": "झाली होती.",
+        "count": 41
+      },
+      {
+        "text": "केला होता.",
+        "count": 40
+      },
+      {
+        "text": "दिला आहे.",
+        "count": 39
+      },
+      {
+        "text": "करत आहेत.",
+        "count": 39
+      },
+      {
+        "text": "झाले होते.",
+        "count": 38
+      },
+      {
+        "text": "झाला होता.",
+        "count": 37
+      },
+      {
+        "text": "दिसत आहे.",
+        "count": 36
+      },
+      {
+        "text": "आला होता.",
+        "count": 35
+      }
+    ]
+  },
+  {
+    "grouper": "random_mr_v1",
+    "tokenizer": "LingoIITGN/ganga-1b",
+    "n_sentences": 5000,
+    "n_words": 207606,
+    "n_groups": 196724,
+    "n_tokens": 509688,
+    "words_per_group": 1.055316077346943,
+    "tokens_per_group": 2.5908785913259185,
+    "tokens_per_word": 2.455073552787492,
+    "pct_words_attached": 5.241659682282785,
+    "same_group_rate": {
+      "1": 0.6201138128903402,
+      "2": 0.33932173676374056,
+      "3": 0.1551557541086337,
+      "4": 0.06736396717977203
+    },
+    "same_group_counts": {
+      "1": {
+        "same": 312964,
+        "total": 504688
+      },
+      "2": {
+        "same": 169555,
+        "total": 499688
+      },
+      "3": {
+        "same": 76754,
+        "total": 494690
+      },
+      "4": {
+        "same": 32988,
+        "total": 489698
+      }
+    },
+    "sentence_sha256": "065488aa08de197b686aefabf750b8c6b58cd6dd2cdc68fc1c7c8a1b0eab11a0",
+    "max_length": null,
+    "top_multiword_groups": [
+      {
+        "text": "आहे. त्यामुळे",
+        "count": 12
+      },
+      {
+        "text": "पुन्हा एकदा",
+        "count": 8
+      },
+      {
+        "text": "आहे. या",
+        "count": 8
+      },
+      {
+        "text": "जात आहे.",
+        "count": 8
+      },
+      {
+        "text": "सोशल मीडियावर",
+        "count": 7
+      },
+      {
+        "text": "केला आहे.",
+        "count": 6
+      },
+      {
+        "text": "केली आहे.",
+        "count": 6
+      },
+      {
+        "text": "आहे. तर",
+        "count": 6
+      },
+      {
+        "text": "झाले आहेत.",
+        "count": 6
+      },
+      {
+        "text": "रुग्णांची संख्या",
+        "count": 5
+      },
+      {
+        "text": "करण्यात आली",
+        "count": 5
+      },
+      {
+        "text": "आले आहे.",
+        "count": 5
+      },
+      {
+        "text": "आहे असे",
+        "count": 5
+      },
+      {
+        "text": "झाला आहे.",
+        "count": 5
+      },
+      {
+        "text": "करण्यात आले",
+        "count": 4
+      },
+      {
+        "text": "आला आहे.",
+        "count": 4
+      },
+      {
+        "text": "होणार आहे.",
+        "count": 4
+      },
+      {
+        "text": "नाही तर",
+        "count": 4
+      },
+      {
+        "text": "केली जात",
+        "count": 4
+      },
+      {
+        "text": "आहे आणि",
+        "count": 4
+      },
+      {
+        "text": "येणार आहे.",
+        "count": 4
+      },
+      {
+        "text": "पंतप्रधान नरेंद्र",
+        "count": 4
+      },
+      {
+        "text": "होत आहे.",
+        "count": 4
+      },
+      {
+        "text": "होती. या",
+        "count": 4
+      },
+      {
+        "text": "करत आहेत.",
+        "count": 4
+      },
+      {
+        "text": "केले आहे.",
+        "count": 4
+      },
+      {
+        "text": "झाली आहे.",
+        "count": 3
+      },
+      {
+        "text": "आहेत. या",
+        "count": 3
+      },
+      {
+        "text": "घेण्यात आला.",
+        "count": 3
+      },
+      {
+        "text": "वाढत आहे.",
+        "count": 3
+      }
+    ]
+  }
+]
