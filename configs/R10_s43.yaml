@@ -1,0 +1,22 @@
+# R10_s43: = R10, seed 43 + data.shuffle (Marathi seed replicate for the #53 boundary-alignment check). Marathi structural run = R3's recipe on Misal with mr_rules_v1 (R5 not run: #36); control R10a
+# Run matrix: docs/plan/README.md §6. Fields: INTERFACES §6 (+ optional: head_layers, optim.grad_accum,
+# optim.weight_decay, data.eval_n, weighting.head_decay, log_every). TBD = decided later; train.py fails loudly on it.
+run_name: R10_mr_k4_struct_s43
+lang: mr
+model_name: smallstepai/Misal-1B-instruct-v0.1
+num_heads: 4
+head_type: resblock
+head_layers: 1
+head_backbone_grad: 0.1   # extra heads send 10% of their gradient into LoRA (2k-step pilot: head 0 +0.011 vs R0)
+lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}  # checked: Misal is Llama, q_proj/v_proj exist
+optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500, grad_accum: 1, weight_decay: 0.01}
+data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: mr_rules_v1, max_length: 128, eval_n: 100, shuffle: true}
+losses:
+  structural: {enabled: true, variant: S23_mix, weight: 1.0, lambda_s2: 0.1, lambda_s3: 0.25, lambda_s3_all: 0.25, s3_teacher: chain}  # = R3
+  contrastive: {enabled: false, weight: 0.05, temperature: 0.1}
+weighting: {scheme: fixed, head_decay: 0.8}  # = R3 (JN-7b: no adaptive scheme passed, #36)
+log_every: 20
+eval_every: 250
+save_every: 500
+seed: 43
+dtype: auto
