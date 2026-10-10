@@ -39,6 +39,26 @@ Datasets hold `config.yaml`, `metrics.jsonl`, `train.log`, `step_12000/`, `step_
 
 On eval_small the h0 loss is flat from step 250 (3.052) to 12500 (3.049), so the gains are in heads 1-3. The full 500-sentence eval set and FLORES come from Om's `evaluate.py` (OM-4/OM-7).
 
+### Method runs (Kaggle T4 x2, account `jainam2142`)
+
+Pilots that led here: `docs/design_structural_loss.md` §5. Step 12500. Logged eval: R3 on eval_small (like R0-R2); Rsd on `eval` (~500 sentences).
+
+| ID | commit | config | Kaggle dataset | h0 | h1 | h2 | h3 | notes |
+|---|---|---|---|---|---|---|---|---|
+| R3 | 75b1db5 | R3.yaml (S23_mix, λ 0.25 / 0.25, chain) | `jainam2142/mtp-run-R3` | 3.056 (39.5%) | 5.497 (15.0%) | 6.382 (8.1%) | 6.773 (4.9%) | 2026-10-10; eval_small; h1 in-group / boundary 28.8 / 14.0% |
+| Rsd | a4f1ff4 | Rsd.yaml (frozen backbone, self-distillation, 100k texts) | `jainam2142/mtp-run-Rsd` | 2.865 (42.2%) | 5.967 (13.9%) | 6.869 (7.1%) | 7.250 (4.5%) | 2026-10-10; `eval`; head 0 = base model exactly |
+| Rsd_s43 | a4f1ff4 | Rsd_s43.yaml (= Rsd, seed 43 + `data.shuffle`) | not published | 2.865 (42.2%) | 5.969 (14.0%) | 6.878 (7.2%) | 7.257 (4.3%) | replicate of Rsd |
+| R6a | 1124204 | R6a.yaml (= R3, `grouper: random`) | — | | | | | running 2026-10-10; compare with R3 using `--grouper hi_rules_v0` |
+
+**Acceptance (Jainam's check, not the official eval):** FixedK on 100 IndicCorp-eval prompts (`make_prompts(..., seed=1)`), RTX 4060, paired bootstrap vs R2.
+
+| run | tokens/step | h1 / h2 / h3 acceptance | h1 in-group top-1 (`eval`, real text) | speed-up (fp32, 20 flores_hi prompts) |
+|---|---|---|---|---|
+| R2 | 1.370 | 30.1 / 6.1 / 1.4% | 23.4% | 1.24× |
+| R3 | 1.380 (n.s.) | 30.9 / 6.3 / 1.5% | **+2.3 ✓** | — |
+| Rsd | **1.649 (+0.28 ✓)** | **41.0 / 17.1 / 8.2%** | −3.4 | **1.53×** |
+| Rsd_s43 | 1.664 (+0.29 ✓) | 41.6 / 18.0 / 8.3% | −3.3 | — |
+
 ## Official evaluation (OM-7 `scripts/evaluate.py`, OM-8)
 
 Step 12500, grouper `hi_rules_v0`, Kaggle T4. JSONs in `results/{run}/eval_{dataset}.json` (INTERFACES §10).
