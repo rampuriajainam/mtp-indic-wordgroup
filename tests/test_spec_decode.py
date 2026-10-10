@@ -300,9 +300,15 @@ def test_evaluate_spec_decode_section10(tiny_model_dir, tmp_path, tiny_tok):
     for r in res:
         assert set(r) == {"policy", "mean_accepted_len", "accept_rate_per_head", "tokens_per_sec",
                           "greedy_tokens_per_sec", "speedup", "outputs_match_greedy", "group_integrity", "n_prompts", "match_rate", "max_mismatch_margin", "fp32_check",
-                          "mean_new_tokens", "ignore_eos"}
+                          "mean_new_tokens", "ignore_eos", "per_prompt"}
         assert r["outputs_match_greedy"] is True and r["n_prompts"] == 3
         assert len(r["accept_rate_per_head"]) == 3 and r["mean_accepted_len"] >= 1.0
+        pp = r["per_prompt"]   # per-prompt lists reproduce the aggregates (bootstrap input)
+        assert all(len(v) == 3 for v in pp.values())
+        assert sum(pp["tokens"]) / sum(pp["steps"]) == pytest.approx(r["mean_accepted_len"])
+        assert sum(pp["match"]) / 3 == pytest.approx(r["match_rate"])
+        if r["group_integrity"] is not None:
+            assert sum(pp["gi_hits"]) / sum(pp["gi_spans"]) == pytest.approx(r["group_integrity"])
 
 
 def test_make_prompts_deterministic(tiny_tok):
