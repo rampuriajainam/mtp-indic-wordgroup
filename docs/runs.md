@@ -333,3 +333,30 @@ FixedK chain on 100 IndicCorp eval prompts (RTX 4060 or T4), paired bootstrap vs
 
 - Self-distillation transfers to Marathi (Hindi: Rsd − R2 = +0.28 on the same check). Soft = hard again.
 - **Caveat:** Rsd_mr speeds up Misal-instruct as is, whose head 0 (4.89 on `eval`) is much weaker on IndicCorp than the LoRA-tuned R8/R9 (4.25 official). Evaluate it with `ignore_eos` (OM).
+
+## Rsd_soft and Rsd_k6 (OM-8, official eval)
+
+`Rsd_hi_k4_frozen_sd_soft` (soft-label KL) and `Rsd_hi_k6_frozen_sd` (6 heads), step 12500, Kaggle T4, `hi_rules_v0`, 200 prompts. Head 0 = ganga-1b in all three, so its loss is identical (2.865 / 3.984).
+
+| run | dataset | FixedK tokens/step | accept h1 … h5 | speed-up (tok/s) | ConfidenceCut | fp32 re-check |
+|---|---|---|---|---|---|---|
+| Rsd | indiccorp_eval | 1.67 | 41.7 / 17.4 / 9.1% | **×1.36** (37.5) | 1.36, ×1.14 | 20/20 |
+| Rsd_soft | indiccorp_eval | 1.67 | 41.9 / 17.8 / 8.7% | **×1.38** (37.8) | 1.26, ×1.07 | 20/20 |
+| Rsd_k6 | indiccorp_eval | **1.71** | 40.8 / 16.2 / 8.1 / 4.6 / 3.1% | ×1.28 (35.2) | 1.38, ×1.05 | 20/20 |
+| Rsd | flores_hi | 1.60 | 39.0 / 15.5 / 7.1% | ×1.32 (36.4) | 1.30, ×1.09 | 20/20 |
+| Rsd_soft | flores_hi | 1.60 | 39.2 / 15.4 / 6.6% | ×1.31 (36.0) | 1.22, ×1.03 | 20/20 |
+| Rsd_k6 | flores_hi | **1.63** | 38.4 / 15.0 / 6.6 / 2.8 / 1.6% | ×1.21 (33.5) | 1.31, ×1.00 | 20/20 |
+
+Verify-pass cost (`bench_verify`, ms, × greedy pass of 35.3-35.4 ms):
+
+| positions | 1 | 4 | 8 | 16 | 25 | 32 | 64 |
+|---|---|---|---|---|---|---|---|
+| Rsd (k4) | 41.6 (1.17) | 42.6 (1.20) | 43.0 (1.21) | 43.8 (1.23) | 45.3 (1.27) | 45.5 (1.27) | 46.5 (1.30) |
+| Rsd_soft (k4) | 41.5 (1.18) | 42.6 (1.21) | 42.9 (1.22) | 43.8 (1.24) | 45.3 (1.28) | 45.5 (1.29) | 46.5 (1.32) |
+| Rsd_k6 | 45.5 (1.29) | 46.7 (1.32) | 47.0 (1.33) | 48.4 (1.37) | 49.6 (1.40) | 49.7 (1.40) | 50.9 (1.44) |
+
+- **Soft labels: no gain over Rsd** in acceptance or speed. That confirms Jainam's laptop check, so it goes in as a negative row. Its far heads are better on real text (h1 loss 5.69 vs 5.97), but that doesn't move acceptance.
+- **k6: +0.03-0.04 tokens/step, but slower on T4.** Each extra head costs ~2 ms per pass (4 ms for two, at every size), so ×1.28 vs ×1.36 on IndicCorp. Heads 4-5 are accepted only 3-5% / 2-3% of the time, which doesn't pay for them.
+- **Tree outlook:** with Jainam's real/offline correction (0.86 k4, 0.82 k6), the n64 trees give ≈ 2.38 tokens/step ÷ 1.30 ≈ ×1.83 for k4 and ≈ 2.41 ÷ 1.44 ≈ ×1.67 for k6. So **k4 is the better tree base on T4**, unless `generate_tree()` shows the deep nodes are accepted more than the oracle predicts.
+- k6 h4/h5 in-group numbers rest on 58 / 26 targets: ignore them.
+

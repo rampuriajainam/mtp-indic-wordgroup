@@ -1,0 +1,145 @@
+{
+  "run_name": "Rsd_hi_k6_frozen_sd",
+  "dataset": "flores_hi",
+  "step": 12500,
+  "grouper": "hi_rules_v0",
+  "git_commit": "a5147bac625396385f7aefcf001bf5e9e3404303",
+  "per_head": [
+    {
+      "head": 0,
+      "loss": 3.984417965523841,
+      "ppl": 53.75399369359962,
+      "top1": 0.2986099193409988,
+      "top5": 0.5380470224815515,
+      "n": 29135,
+      "top1_in_group": 0.43464852607709753,
+      "loss_in_group": 2.3349338211440176,
+      "n_in_group": 11025,
+      "top1_at_boundary": 0.2157923799006074,
+      "loss_at_boundary": 4.988590345377425,
+      "n_at_boundary": 18110
+    },
+    {
+      "head": 1,
+      "loss": 6.90831594009706,
+      "ppl": 1000.5608183147428,
+      "top1": 0.0879351420545461,
+      "top5": 0.22405148810582085,
+      "n": 28123,
+      "top1_in_group": 0.09499358151476252,
+      "loss_in_group": 6.469108322924613,
+      "n_in_group": 3116,
+      "top1_at_boundary": 0.08705562442516096,
+      "loss_at_boundary": 6.96304343987785,
+      "n_at_boundary": 25007
+    },
+    {
+      "head": 2,
+      "loss": 7.576779900963429,
+      "ppl": 1952.3321298017274,
+      "top1": 0.045553465383054846,
+      "top5": 0.1406809044299362,
+      "n": 27111,
+      "top1_in_group": 0.06739345887016848,
+      "loss_in_group": 6.921319669963584,
+      "n_in_group": 1009,
+      "top1_at_boundary": 0.04470921768446862,
+      "loss_at_boundary": 7.602117379299389,
+      "n_at_boundary": 26102
+    },
+    {
+      "head": 3,
+      "loss": 7.821824728490256,
+      "ppl": 2494.452957139957,
+      "top1": 0.03318134794436568,
+      "top5": 0.1143721981685122,
+      "n": 26099,
+      "top1_in_group": 0.087248322147651,
+      "loss_in_group": 6.758382719635163,
+      "n_in_group": 298,
+      "top1_at_boundary": 0.032556877640401535,
+      "loss_at_boundary": 7.834107386826092,
+      "n_at_boundary": 25801
+    },
+    {
+      "head": 4,
+      "loss": 7.903983531840446,
+      "ppl": 2708.048467698554,
+      "top1": 0.02638816917128393,
+      "top5": 0.10053015506038984,
+      "n": 25087,
+      "top1_in_group": 0.03896103896103896,
+      "loss_in_group": 7.007926745848223,
+      "n_in_group": 77,
+      "top1_at_boundary": 0.026349460215913636,
+      "loss_at_boundary": 7.906742234746726,
+      "n_at_boundary": 25010
+    },
+    {
+      "head": 5,
+      "loss": 7.9910534198955085,
+      "ppl": 2954.4075525112326,
+      "top1": 0.025046728971962615,
+      "top5": 0.0933748701973001,
+      "n": 24075,
+      "top1_in_group": 0.045454545454545456,
+      "loss_in_group": 6.997197443788702,
+      "n_in_group": 22,
+      "top1_at_boundary": 0.02502806302748098,
+      "loss_at_boundary": 7.991962461884302,
+      "n_at_boundary": 24053
+    }
+  ],
+  "spec_decode": [
+    {
+      "policy": "fixed_k",
+      "mean_accepted_len": 1.6284987277353689,
+      "accept_rate_per_head": [
+        0.38352455846332345,
+        0.1497123430962343,
+        0.06586270871985157,
+        0.027553763440860215,
+        0.01608286765708055
+      ],
+      "tokens_per_sec": 33.482598107231404,
+      "greedy_tokens_per_sec": 27.664540962022734,
+      "speedup": 1.210307380599431,
+      "outputs_match_greedy": false,
+      "match_rate": 0.83,
+      "max_mismatch_margin": 0.0078125,
+      "fp32_check": {
+        "n_prompts": 20,
+        "match_rate": 1.0,
+        "outputs_match_greedy": true,
+        "max_mismatch_margin": null
+      },
+      "group_integrity": 0.8061153578874218,
+      "n_prompts": 200
+    },
+    {
+      "policy": "confidence_cut",
+      "mean_accepted_len": 1.3095968897073869,
+      "accept_rate_per_head": [
+        0.7219578518014956,
+        0.6419612314709237,
+        0.6341463414634146,
+        0.6153846153846154,
+        0.6634615384615384
+      ],
+      "tokens_per_sec": 27.670451767496772,
+      "greedy_tokens_per_sec": 27.664540962022734,
+      "speedup": 1.000213659987424,
+      "outputs_match_greedy": false,
+      "match_rate": 0.825,
+      "max_mismatch_margin": 0.015625,
+      "fp32_check": {
+        "n_prompts": 20,
+        "match_rate": 1.0,
+        "outputs_match_greedy": true,
+        "max_mismatch_margin": null
+      },
+      "group_integrity": 0.7680737506065017,
+      "n_prompts": 200
+    }
+  ]
+}
