@@ -389,6 +389,14 @@ def main(argv=None):
         cap = torch.cuda.get_device_capability()
         print(f"GPU {torch.cuda.get_device_name(0)} | compute capability {cap[0]}.{cap[1]} | native bf16 {cap[0] >= 8}")
     model, tokenizer = build_model(cfg, device)
+    init = cfg_get(cfg, "init_lora_from")
+    if init:  # e.g. Rsd on top of R8: start from a trained run's LoRA (with freeze_backbone, head 0 = that run)
+        from mtp.model.checkpoint import load_lora
+        step = latest_step(init)
+        if step is None:
+            raise FileNotFoundError(f"init_lora_from: no step_* in {init}")
+        load_lora(model, Path(init) / f"step_{step}")
+        print(f"LoRA initialised from {init}/step_{step}")
     train_examples, eval_examples = build_data(cfg, tokenizer)
     train(cfg, model, tokenizer, train_examples, eval_examples, Path(args.run_root) / cfg.run_name,
           resume=args.resume, stop_after_min=args.stop_after_min)
