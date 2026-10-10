@@ -28,7 +28,7 @@ Status tags: **[exists]** = on `main` with tests; **[todo: name]** = to be writt
 | `mtp/losses/weighting.py` | `LossWeighting` (fixed, uncertainty, dwa) | [exists] |
 | `scripts/train.py` | training entry point | [exists] |
 | `notebooks/kaggle_train.ipynb` | Kaggle training | [exists] |
-| `mtp/losses/contrastive.py` | SupCon over word groups | [todo: Jainam, P2] |
+| `mtp/losses/contrastive.py` | SupCon over word groups | done (JN-6) |
 | `mtp/eval/draft_policy.py` | `DraftPolicy`, `FixedK`, `ConfidenceCut`, `POLICIES` registry, `get_policy` | [exists] |
 | `mtp/eval/group_aware.py` | `GroupAware` policy | [todo: Jainam] |
 | `mtp/eval/head_accuracy.py` | `evaluate_heads` (per-head loss/ppl/top-k, in-group split, token dump; ppl lives here, no separate `perplexity.py`) | [exists] |
@@ -125,7 +125,7 @@ class MTPOutput:
 
 class MTPModel(nn.Module):
     def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1,
-                 backbone_grad: float = 1.0, boundary_probes: bool = False, **kw): ...
+                 backbone_grad: float = 1.0, boundary_probes: bool = False, contrastive_dim: int = 0, **kw): ...
     def forward(self, input_ids, attention_mask=None, use_cache: bool = False, extra_heads: bool = True, **kw) -> MTPOutput: ...  # extra_heads=False: logits = [head 0] only
     def head_state_dict(self) -> dict          # extra heads + probes = heads.pt
     def load_head_state_dict(self, state)      # also accepts the legacy extra_heads-only format
@@ -135,7 +135,7 @@ class MTPModel(nn.Module):
 - `num_heads` counts all heads including head 0 (the base LM head).
 - `head_type`: `"linear"` (fresh `nn.Linear(hidden, vocab)`, R1), `"resblock"` (h_d = h + SiLU(W h + b), W, b zero-init, logits = frozen `lm_head(h_d)`), `"seq"` (sequential heads: s_0 = h_t, s_d = s_{d-1} + SiLU(W_d [s_{d-1}; e(x_{t+d})] + b_d), e = detached input embeddings, W_d zero-init, logits = `lm_head(s_d)`; `forward` teacher-forces x_{t+d} from `input_ids` (zeros past the end), so decoding gets drafts from `draft_chain`; `spec_decode.generate` does this automatically, gives the policy the chain's logits, and runs verify passes with `extra_heads=False`).
 - `backbone_grad`: share of heads 1..k-1's gradient that reaches the backbone (0 = detached). Forward is identical for every value.
-- `aux["head_hidden"]`: list of k `[B, T, H]` (what each head's output layer reads). `aux["boundary_logits"]`: list of k `[B, T]`, logit that token t+d+1 starts a word group (only with probes). `aux["past_key_values"]`: only with `use_cache=True`.
+- `aux["head_hidden"]`: list of k `[B, T, H]` (what each head's output layer reads). `aux["boundary_logits"]`: list of k `[B, T]`, logit that token t+d+1 starts a word group (only with probes). `aux["past_key_values"]`: only with `use_cache=True`. `aux["contrastive_z"]`: `[B, T, contrastive_dim]` L2-normalised 2-layer-MLP projection of `hidden` (only with `contrastive_dim > 0`; `build_model` sets 128 when `losses.contrastive.enabled`); the projection is saved in `heads.pt`.
 
 ```python
 # mtp/model/build.py  [exists]
