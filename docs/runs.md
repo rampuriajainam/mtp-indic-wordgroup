@@ -192,3 +192,69 @@ Greedy pass: 35.4-35.7 ms.
 - **At batch 1 the T4 is memory-bound:** scoring 25 positions costs 9% more than scoring 1, and 64 positions costs 12% more. Tree size is not the constraint up to 64 nodes. The fixed cost is the extra heads: 1 position is already ×1.17 greedy.
 - **The model predicts the measured chain speed-up:** Rsd chain = 1.67 tokens/step ÷ 1.20 (4 positions) = ×1.39, against ×1.36 measured (the rest is drafting overhead). On the same model, Jainam's offline 25-node tree (2.51 tokens/step, #33) ÷ 1.27 gives a **×1.98 ceiling** for `generate_tree()` on T4.
 
+## R6a: random-group control for R3 (OM-8, official eval)
+
+`R6a_hi_k4_struct_random` (`jainam2142/mtp-run-R6a`) = R3 with `data.grouper: random` (JI-4), step 12500. Evaluated with `--grouper hi_rules_v0`, so in-group / boundary use the **linguistic** groups for every run. The target counts match R2/R3 exactly (h1 in-group 1,886 on IndicCorp, 3,116 on FLORES).
+
+| dataset | head | top-1 R2 / R3 / R6a | in-group top-1 R2 / R3 / R6a (n) | boundary top-1 R2 / R3 / R6a |
+|---|---|---|---|---|
+| indiccorp_eval | h0 | 42.4 / 42.3 / 42.3 | 58.3 / 58.3 / 58.3 (8,729) | 34.6 / 34.6 / 34.5 |
+| indiccorp_eval | h1 | 15.0 / 15.5 / 15.4 | 23.4 / **25.8** / **25.2** (1,886) | 14.3 / 14.7 / 14.7 |
+| indiccorp_eval | h2 | 8.1 / 8.4 / 8.4 | 19.0 / **24.1** / 21.5 (557) | 7.8 / 8.0 / 8.1 |
+| indiccorp_eval | h3 | 5.3 / 5.5 / 5.4 | 17.5 / **22.2** / 19.9 (171) | 5.2 / 5.3 / 5.3 |
+| flores_hi | h0 | 30.3 / 30.2 / 30.2 | 44.1 / 44.1 / 44.2 (11,025) | 21.9 / 21.7 / 21.8 |
+| flores_hi | h1 | 10.3 / 10.6 / 10.6 | 12.5 / **14.3** / 13.7 (3,116) | 10.0 / 10.1 / 10.2 |
+| flores_hi | h2 | 5.9 / 6.2 / 6.2 | 12.1 / **14.0** / 12.9 (1,009) | 5.7 / 5.9 / 6.0 |
+| flores_hi | h3 | 4.4 / 4.5 / 4.5 | 12.1 / **13.1** / 11.1 (298) | 4.3 / 4.4 / 4.5 |
+
+| dataset | FixedK tokens/step R2 / R3 / R6a | speed-up R2 / R3 / R6a | R6a fp32 re-check |
+|---|---|---|---|
+| indiccorp_eval | 1.39 / 1.39 / 1.40 | ×1.15 / ×1.15 / ×1.14 | 20/20 (both policies) |
+| flores_hi | 1.36 / 1.35 / 1.37 | ×1.12 / ×1.12 / ×1.12 | 20/20 (both policies) |
+
+- **Head 1: random groups give most of R3's in-group gain.** R6a is at +1.8 vs R2 on IndicCorp (R3 +2.4) and +1.2 on FLORES (R3 +1.8). It does **not** reproduce the −11.5 point drop of the laptop check in #39.
+- **Heads 2-3: R3 stays ahead of R6a** by 2.3 to 2.6 points on IndicCorp and 1.1 to 2.0 on FLORES, about half of R3's gain over R2. These counts are small (557 / 171 targets on IndicCorp), so the binomial SE is about 1.7 / 3.1 points. A paired bootstrap needs token dumps (`--dump_tokens`).
+- Head 0, acceptance and speed: same as R2/R3.
+
+## α ablation A1 (JN-10, OM-8, official eval)
+
+`A1_alpha0` / `A1_alpha1` (`jainamrampuria/mtp-run-A1-alpha{0,1}`) = R2 with `head_backbone_grad` 0 / 1; R2 is α = 0.1. Step 12500, `hi_rules_v0`, 200 prompts.
+
+| α | dataset | h0 loss (top-1) | h1 / h2 / h3 top-1 | FixedK tokens/step | h1 / h2 / h3 accept | speed-up | fp32 re-check |
+|---|---|---|---|---|---|---|---|
+| 0 | indiccorp_eval | 2.834 (42.5%) | 14.7 / 7.9 / 5.2 | 1.38 | 29.7 / 6.8 / 2.3% | ×1.14 | 20/20 |
+| 0.1 (R2) | indiccorp_eval | 2.841 (42.4%) | 15.0 / 8.1 / 5.3 | 1.39 | 30.1 / 7.2 / 2.4% | ×1.15 | 19/20 (exact tie) |
+| 1 | indiccorp_eval | **2.981 (40.6%)** | 15.6 / 8.7 / 5.7 | **1.44** | 34.1 / 8.3 / 2.0% | **×1.18** | 20/20 |
+| 0 | flores_hi | 3.955 (30.2%) | 10.0 / 5.8 / 4.3 | 1.32 | 27.2 / 5.0 / 0.8% | ×1.09 | 20/20 |
+| 0.1 (R2) | flores_hi | 3.946 (30.3%) | 10.3 / 5.9 / 4.4 | 1.36 | 29.5 / 6.2 / 1.3% | ×1.12 | 20/20 |
+| 1 | flores_hi | **4.019 (29.5%)** | 10.7 / 6.3 / 4.7 | **1.40** | 32.5 / 7.0 / 1.1% | **×1.16** | 20/20 |
+
+- **The trade-off holds on T4:** α = 1 gives +0.04-0.05 tokens/step and +0.03-0.04 speed-up over R2, but head 0 (the model being sped up) is worse by +0.14 nats / −1.8 points top-1 on IndicCorp and +0.07 / −0.8 on FLORES.
+- **α = 0.1 is the right default:** its verifier is within 0.01 of α = 0, and its heads are slightly better.
+- This matches Jainam's laptop check: +0.049 tokens/step for α = 1.
+
+## Marathi: R8 / R9 (Misal-1B, OM-8, official eval)
+
+`R8_mr_ntp` / `R9_mr_mtp_k4_resblock` (`jainam2142/mtp-run-R8`, `-R9`), base `smallstepai/Misal-1B-instruct-v0.1` (adds BOS; 1.61 tokens/word). Step 12500, grouper `mr_rules_v1`, IndicCorp mr eval (raw rows 0-999) + FLORES devtest mar_Deva, 200 prompts.
+
+| run | dataset | h0 | h1 | h2 | h3 | in-group / boundary top-1 (h0 · h1 · h2 · h3) |
+|---|---|---|---|---|---|---|
+| R8 | indiccorp_eval (mr) | 4.252 (30.2%) | | | | 46.2 / 20.1 |
+| R9 | indiccorp_eval (mr) | 4.258 (30.1%) | 6.824 (11.5%) | 7.621 (7.6%) | 7.969 (6.0%) | 46.4 / 19.7 · 28.3 / 8.6 · 17.4 / 7.2 · 11.7 / 6.0 |
+| R8 | flores_mr | 4.903 (23.7%) | | | | 39.8 / 12.6 |
+| R9 | flores_mr | 4.905 (23.6%) | 7.520 (7.1%) | 8.122 (5.0%) | 8.318 (4.5%) | 39.5 / 12.6 · 16.2 / 5.4 · 8.2 / 4.9 · 8.1 / 4.5 |
+
+In-group targets per head (R9, IndicCorp): h0 10,214, h1 3,931, h2 1,256, h3 444. That's about twice Hindi's share at h1 (3,931 vs 1,886 for a similar number of targets).
+
+| run | dataset | policy | tokens/step | accept h1 / h2 / h3 | speed-up (tok/s) | identical (fp16) | fp32 re-check | Group Integrity |
+|---|---|---|---|---|---|---|---|---|
+| R9 | indiccorp_eval | fixed_k | 1.31 | 24.4 / 6.0 / 1.2% | ×1.07 (24.4 vs 22.9) | 85.0% | 20/20 | 77.3% |
+| R9 | indiccorp_eval | confidence_cut | 1.07 | 58.4 / 36.5 / 14.1% | ×0.89 | 85.5% | 20/20 | 84.9% |
+| R9 | flores_mr | fixed_k | 1.30 | 23.8 / 5.5 / 1.0% | ×1.05 (24.1 vs 23.0) | 90.0% | 20/20 | 79.4% |
+| R9 | flores_mr | confidence_cut | 1.06 | 51.3 / 22.5 / 8.2% | ×0.88 | 88.5% | 20/20 | 78.1% |
+
+- **Head 0 is held:** R9 − R8 = +0.006 (IndicCorp) / +0.002 (FLORES).
+- **Marathi speed-up is smaller than Hindi:** ×1.05-1.07 vs ×1.12-1.15 for R2, because head 1 is accepted less often (24% vs 30%). Greedy is also slower (23 vs 27.7 tok/s; Misal is a Llama with a 32k vocabulary).
+- **In-group vs boundary gap is much larger than in Hindi:** h1 28.3% in-group vs 8.6% at boundaries (3.3×; Hindi R2 1.6×). That's the word-internal structure Jainam's tree oracle picks up (#33).
+- **EOS is not an issue for these prompts:** greedy took ~2.8 s per prompt at 23 tok/s ≈ 64 tokens, i.e. almost no prompt stopped early. Prompts are cut mid-sentence, unlike the train prompts in #39.
+
