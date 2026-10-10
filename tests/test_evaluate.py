@@ -127,6 +127,24 @@ def test_hindi_grouper_on_marathi_dataset_evaluates_without_split(evaluate, tiny
     assert mr["per_head"][0]["n_in_group"] == 0
 
 
+def test_grouper_for_lang(evaluate):
+    spec = "hi:hi_rules_v0, mr:mr_rules_v1"
+    assert evaluate.grouper_for_lang(spec, "hi") == "hi_rules_v0"
+    assert evaluate.grouper_for_lang(spec, "mr") == "mr_rules_v1"
+    assert evaluate.grouper_for_lang("hi:hi_rules_v0", "mr") is None   # -> the run's data.grouper
+    assert evaluate.grouper_for_lang("hi_rules_v0", "mr") == "hi_rules_v0"
+    assert evaluate.grouper_for_lang("", "hi") is None
+
+
+def test_flores_alias_and_per_language_grouper(evaluate, tiny_run, tmp_path):
+    """`flores` = FLORES in the run's language; a per-language --grouper picks the run's entry."""
+    written = evaluate.evaluate_run(tiny_run, ["flores"], grouper_name="mr:mr_rules_v1,hi:hi_rules_v0",
+                                    out_dir=tmp_path, device="cpu", texts_fn=fake_texts)
+    assert set(written) == {"flores_hi"}
+    rec = json.loads((tmp_path / "tiny_R2" / "eval_flores_hi.json").read_text(encoding="utf-8"))
+    assert rec["dataset"] == "flores_hi" and rec["grouper"] == "hi_rules_v0"
+
+
 SPEC_KEYS = {"policy", "mean_accepted_len", "accept_rate_per_head", "tokens_per_sec", "greedy_tokens_per_sec",
              "speedup", "outputs_match_greedy", "group_integrity", "n_prompts", "match_rate", "max_mismatch_margin", "fp32_check"}
 LONG = ["मैं कल बाजार जा रहा था। वह घर से आया था भारत एक विशाल और विविधतापूर्ण देश है।",

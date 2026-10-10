@@ -10,8 +10,11 @@ Writes results/{run_name}/eval_{dataset}.json (commit these) and, with --dump_to
 results/{run_name}/tokens_{dataset}.jsonl (large: keep out of git).
 
 Datasets (INTERFACES §4): indiccorp_eval, indiccorp_eval_small (in the run's language),
-flores_hi, flores_mr. FLORES is gated: accept the terms on huggingface.co/datasets/facebook/flores
-and log in (HF_TOKEN).
+flores_hi, flores_mr, and flores = FLORES in the run's language (written as flores_{lang}).
+FLORES is gated: accept the terms on huggingface.co/datasets/facebook/flores and log in (HF_TOKEN).
+
+--grouper takes one name or one per run language, e.g. "hi:hi_rules_v0,mr:mr_rules_v1", so Hindi
+and Marathi runs can share one command line (a language not listed uses the run's data.grouper).
 
 --spec_decode adds the §10 spec_decode section (mtp.eval.spec_decode): prompts are the first 8-16
 words of the first --spec_n sentences of each dataset, batch size 1, outputs checked against greedy.
@@ -37,6 +40,7 @@ DATASETS = {
     "indiccorp_eval_small": (None, "eval_small"),
     "flores_hi": ("hi", "flores"),
     "flores_mr": ("mr", "flores"),
+    "flores": (None, "flores"),   # the run's language; renamed flores_{lang} in evaluate_run
 }
 
 
@@ -50,6 +54,15 @@ def load_texts(name, cfg, n=None):
 
     _, split = DATASETS[name]
     return load_split(dataset_lang(name, cfg), split, n)
+
+
+def grouper_for_lang(spec, lang):
+    """Grouper name for a run in `lang`: `spec` is one name, or "lang:name,lang:name" (None if
+    `lang` is not listed, i.e. use the run's config)."""
+    if not spec or ":" not in spec:
+        return spec or None
+    by_lang = dict(part.strip().split(":", 1) for part in spec.split(",") if part.strip())
+    return by_lang.get(lang) or None
 
 
 def resolve_grouper(name, lang):
@@ -152,7 +165,8 @@ def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT /
     if batch_size:
         cfg.optim.batch_size = batch_size
     max_length = cfg_get(cfg, "data.max_length", 128)
-    grouper_name = grouper_name or cfg_get(cfg, "data.grouper")
+    grouper_name = grouper_for_lang(grouper_name, cfg.lang) or cfg_get(cfg, "data.grouper")
+    datasets = [f"flores_{cfg.lang}" if d == "flores" else d for d in datasets]
     collator = Collator(tokenizer.pad_token_id)
     print(f"run {cfg.run_name} | step {model.loaded_step} | heads {model.num_heads} | device {device}")
     if spec_decode and model.num_heads < 2:
@@ -214,7 +228,8 @@ def main(argv=None):
     ap.add_argument("--run_dir", required=True, help="run folder with config.yaml and step_N/")
     ap.add_argument("--datasets", nargs="+", default=["indiccorp_eval", "flores_hi"], choices=sorted(DATASETS))
     ap.add_argument("--step", type=int, default=None, help="default: latest step")
-    ap.add_argument("--grouper", default=None, help="default: data.grouper from the run's config")
+    ap.add_argument("--grouper", default=None, help='one name or "hi:hi_rules_v0,mr:mr_rules_v1"; '
+                    "default: data.grouper from the run's config")
     ap.add_argument("--out", default=str(ROOT / "results"))
     ap.add_argument("--dump_tokens", action="store_true", help="also write results/{run}/tokens_{dataset}.jsonl")
     ap.add_argument("--no_heads", action="store_true", help="skip the per-head section (keeps an existing one)")
