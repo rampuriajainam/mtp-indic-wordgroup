@@ -245,7 +245,7 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
     greedy_tps = greedy_tokens / greedy_secs if greedy_secs > 0 else 0.0
 
     check_prompts = prompts[:fp32_check_n] if amp is not None else []
-    check_ref = [greedy_generate(model, tokenizer, p, max_new_tokens, use_cache=use_cache)[0] for p in check_prompts]
+    check_ref = [greedy_generate(model, tokenizer, p, max_new_tokens, use_cache=use_cache) for p in check_prompts]
 
     results = []
     k = model.num_heads
@@ -271,10 +271,17 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
             acc = [a + b for a, b in zip(acc, st["accepted"])]
         fp32_check = None
         if check_prompts:
-            same = sum(generate(model, tokenizer, p, max_new_tokens, policy, grouper, use_cache=use_cache)[0] == ref
-                       for p, ref in zip(check_prompts, check_ref))
+            same, check_margins = 0, []
+            for p, (ref, ref_st) in zip(check_prompts, check_ref):
+                d = first_divergence(generate(model, tokenizer, p, max_new_tokens, policy, grouper,
+                                              use_cache=use_cache)[0], ref)
+                if d is None:
+                    same += 1
+                elif d < len(ref_st["margins"]):
+                    check_margins.append(ref_st["margins"][d])
             fp32_check = {"n_prompts": len(check_prompts), "match_rate": same / len(check_prompts),
-                          "outputs_match_greedy": same == len(check_prompts)}
+                          "outputs_match_greedy": same == len(check_prompts),
+                          "max_mismatch_margin": max(check_margins) if check_margins else None}
         tps = tokens / secs if secs > 0 else 0.0
         results.append({
             "policy": policy.name,

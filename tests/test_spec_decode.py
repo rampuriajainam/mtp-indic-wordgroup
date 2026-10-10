@@ -285,7 +285,8 @@ def test_mismatch_accounting_and_fp32_check(tiny_model_dir, tmp_path, monkeypatc
     _, gst = sd.greedy_generate(model, tok, prompts[1], 6)
     assert res["outputs_match_greedy"] is False and res["match_rate"] == pytest.approx(2 / 3)
     assert res["max_mismatch_margin"] == pytest.approx(gst["margins"][2], abs=1e-4)
-    assert res["fp32_check"] == {"n_prompts": 2, "match_rate": 1.0, "outputs_match_greedy": True}
+    assert res["fp32_check"] == {"n_prompts": 2, "match_rate": 1.0, "outputs_match_greedy": True,
+                                 "max_mismatch_margin": None}
     assert calls["n"] == 1
 
     clean = sd.evaluate_spec_decode(model, tok, prompts, [FixedK()], max_new_tokens=6)[0]   # no amp
@@ -305,3 +306,28 @@ def test_greedy_margins(tiny_model_dir, tmp_path):
     model, tok = _tiny_model(tiny_model_dir, tmp_path, "resblock")
     ids, st = greedy_generate(model, tok, [5, 6], 5)
     assert len(st["margins"]) == len(ids) and all(m >= 0 for m in st["margins"])
+
+
+def test_fp32_check_records_divergence_margin(tiny_model_dir, tmp_path, monkeypatch):
+    """A divergence in the fp32 re-check is counted, with greedy's (fp32) top-2 margin at that token."""
+    import contextlib
+    from mtp.eval import spec_decode as sd
+
+    model, tok = _tiny_model(tiny_model_dir, tmp_path, "resblock")
+    prompts = [[5, 6, 7], [8, 9]]
+    real_generate = sd.generate
+
+    def fp32_flaky(model_, tok_, prompt, *a, amp=None, **kw):
+        ids, st = real_generate(model_, tok_, prompt, *a, amp=amp, **kw)
+        if prompt == prompts[0] and amp is None:              # corrupt token 1, only in the fp32 re-check
+            ids = ids[:1] + [(ids[1] + 1) % len(tok_)] + ids[2:]
+        return ids, st
+
+    monkeypatch.setattr(sd, "generate", fp32_flaky)
+    res = sd.evaluate_spec_decode(model, tok, prompts, [FixedK()], max_new_tokens=5,
+                                  amp=contextlib.nullcontext, fp32_check_n=2)[0]
+    _, gst = sd.greedy_generate(model, tok, prompts[0], 5)
+    assert res["outputs_match_greedy"] is True                  # timed run untouched
+    fc = res["fp32_check"]
+    assert (fc["n_prompts"], fc["match_rate"], fc["outputs_match_greedy"]) == (2, 0.5, False)
+    assert fc["max_mismatch_margin"] == pytest.approx(gst["margins"][1], abs=1e-4)
