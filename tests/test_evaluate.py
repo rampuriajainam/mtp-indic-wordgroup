@@ -188,3 +188,51 @@ def test_cli_errors(evaluate, tiny_run):
         evaluate.main(["--run_dir", str(tiny_run), "--spec_decode", "--policies", "no_such_policy"])
     with pytest.raises(SystemExit, match="nothing to do"):
         evaluate.main(["--run_dir", str(tiny_run), "--no_heads"])
+
+
+def test_frozen_self_distillation_run_is_lossless(evaluate, tmp_path, tiny_model_dir, tiny_tok):
+    """An Rsd-style run (freeze_backbone + data.train_file) goes through train.py -> load_run ->
+    evaluate.py --spec_decode, and head 0 of the loaded run IS the untouched base model."""
+    import torch
+    from transformers import AutoModelForCausalLM
+
+    from mtp.data.collate import Collator
+    from mtp.data.grouping.align import label_batch
+    from mtp.data.grouping.base import get_grouper
+    from mtp.model.build import build_model
+    from mtp.model.checkpoint import load_run
+
+    train = _load("train_script_eval_rsd", ROOT / "scripts" / "train.py")
+    sd_file = tmp_path / "sd.jsonl"            # stands in for gen_selfdistill.py output
+    sd_file.write_text("\n".join(json.dumps({"text": t}) for t in TEXTS * 4) + "\n", encoding="utf-8")
+    d = yaml.safe_load((ROOT / "configs" / "Rsd.yaml").read_text(encoding="utf-8"))
+    d.update(run_name="tiny_Rsd", model_name=str(tiny_model_dir), num_heads=3, dtype="fp32",
+             log_every=1, eval_every=2, save_every=2)
+    d["optim"].update(max_steps=3, batch_size=2)
+    d["data"].update(cache_dir=None, train_file=str(sd_file), eval_n=None)
+    (tmp_path / "c.yaml").write_text(yaml.safe_dump(d), encoding="utf-8")
+    cfg = load_config(tmp_path / "c.yaml")
+    assert cfg.freeze_backbone is True
+
+    train.seed_everything(0)
+    model, tok = build_model(cfg, "cpu")
+    examples = label_batch([json.loads(l)["text"] for l in sd_file.read_text(encoding="utf-8").splitlines()],
+                           tiny_tok, get_grouper("hi_rules_v0"))
+    run_dir = tmp_path / "runs" / "tiny_Rsd"
+    train.train(cfg, model, tok, examples, examples, run_dir)
+
+    loaded, tok2, _ = load_run(run_dir, device="cpu")
+    pristine = AutoModelForCausalLM.from_pretrained(tiny_model_dir, dtype=torch.float32).eval()
+    batch = Collator(tok2.pad_token_id)(label_batch(TEXTS, tok2, get_grouper("hi_rules_v0")))
+    with torch.no_grad():
+        head0 = loaded(batch["input_ids"], batch["attention_mask"]).logits[0]
+        base = pristine(input_ids=batch["input_ids"], attention_mask=batch["attention_mask"]).logits
+        heads = loaded(batch["input_ids"], batch["attention_mask"]).logits[1:]
+    torch.testing.assert_close(head0, base, rtol=0, atol=0)          # lossless: exactly the base model
+    assert not torch.equal(heads[0], head0)                           # the extra heads did train
+
+    out = tmp_path / "res"
+    evaluate.evaluate_run(run_dir, ["indiccorp_eval"], out_dir=out, device="cpu", spec_decode=True,
+                          policies=["fixed_k"], max_new_tokens=8, texts_fn=long_texts)
+    rec = json.loads((out / "tiny_Rsd" / "eval_indiccorp_eval.json").read_text(encoding="utf-8"))
+    assert rec["spec_decode"][0]["outputs_match_greedy"] is True and len(rec["per_head"]) == 3
