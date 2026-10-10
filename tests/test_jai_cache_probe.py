@@ -24,6 +24,7 @@ def test_cache_roundtrip_and_guards(tiny_tok, tmp_path):
 
 
 def test_probe_shift_and_frozen_forward(tiny_model_dir):
+    pytest.importorskip("sklearn")  # requirements-jai.txt, not the core requirements
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -49,6 +50,7 @@ def test_probe_shift_and_frozen_forward(tiny_model_dir):
 
 
 def test_multi_label_probes_share_model_forwards(tiny_model_dir):
+    pytest.importorskip("sklearn")  # requirements-jai.txt, not the core requirements
     from transformers import AutoModelForCausalLM, AutoTokenizer
     from mtp.eval.layer_probes import run_multi_layer_probes
 
