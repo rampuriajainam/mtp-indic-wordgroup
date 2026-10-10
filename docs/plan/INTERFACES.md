@@ -223,11 +223,11 @@ Only the last 2 step folders are kept, plus `keep_steps`. A published run = this
   "spec_decode": [{"policy": "fixed_k", "mean_accepted_len": 1.42, "accept_rate_per_head": [0.42, 0.20, 0.09],
                    "tokens_per_sec": 31.5, "greedy_tokens_per_sec": 24.0, "speedup": 1.31,
                    "outputs_match_greedy": true, "match_rate": 1.0, "max_mismatch_margin": null,
-                   "fp32_check": {"n_prompts": 20, "match_rate": 1.0, "outputs_match_greedy": true},
+                   "fp32_check": {"n_prompts": 20, "match_rate": 1.0, "outputs_match_greedy": true, "max_mismatch_margin": null},
                    "group_integrity": 0.71, "n_prompts": 200}]
 }
 ```
-`outputs_match_greedy` = every prompt identical to greedy in the timed run; `match_rate` = share of prompts identical; `max_mismatch_margin` = largest greedy top-1 minus top-2 logit at a point where an output diverged (tiny = a near-tie flipped by fp16 rounding). `fp32_check` (only under fp16 autocast, e.g. T4) re-runs the first 20 prompts with autocast off: it must be all identical, else the engine has a bug; `null` when the run has no autocast.
+`outputs_match_greedy` = every prompt identical to greedy in the timed run; `match_rate` = share of prompts identical; `max_mismatch_margin` = largest greedy top-1 minus top-2 logit at a point where an output diverged (tiny = a near-tie flipped by fp16 rounding). `fp32_check` (only under fp16 autocast, e.g. T4) re-runs the first 20 prompts with autocast off: it must be all identical, else the engine has a bug (its own `max_mismatch_margin` tells a sub-1e-5 fp32 tie from a real bug); `null` when the run has no autocast.
 
 In-group / at-boundary are defined exactly as `scripts/train.py`'s `evaluate` (target t+d+1 in source t's group). For the same model, data and step, OM-4's numbers must match train.py's logged eval to 1e-3. A split with no positions (`n_in_group` or `n_at_boundary` = 0, e.g. head 3 on short groups) has `null` top1/loss; train.py logs 0.0 there.
 

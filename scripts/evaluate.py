@@ -111,6 +111,8 @@ def print_spec(name, entries):
               f"match greedy {e['outputs_match_greedy']} ({100 * e['match_rate']:.0f}% of prompts"
               + (f", max margin at a divergence {e['max_mismatch_margin']:.3f}" if e["max_mismatch_margin"] is not None else "")
               + ")" + (f" | fp32 re-check {e['fp32_check']['outputs_match_greedy']} on {e['fp32_check']['n_prompts']}"
+                       + (f" (margin {e['fp32_check']['max_mismatch_margin']:.2e})"
+                          if e["fp32_check"].get("max_mismatch_margin") is not None else "")
                        if e["fp32_check"] else "")
               + f" | group integrity {gi} | {e['n_prompts']} prompts")
 
