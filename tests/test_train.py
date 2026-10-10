@@ -176,11 +176,18 @@ def test_train_file_replaces_corpus(tmp_path, monkeypatch):
 
     class Tok:
         def __call__(self, texts, truncation, max_length):
-            return {"input_ids": [[1, len(t)] for t in texts], "attention_mask": [[1, 1] for _ in texts]}
+            ids = [[1] + [ord(c) for c in t] for t in texts]  # distinct per text
+            return {"input_ids": ids, "attention_mask": [[1] * len(i) for i in ids]}
 
     train, ev = train_mod.build_data(cfg, Tok())
     assert calls == ["eval_small"] and len(train) == min(100, train_mod.num_train_examples(cfg))
-    assert train[0]["input_ids"] == [1, len("generated 0")] and len(ev) == 1
+    assert train[0]["input_ids"] == [1] + [ord(c) for c in "generated 0"] and len(ev) == 1
+
+    cfg.data.shuffle = True  # seeded order: same seed -> same order, other seed -> other order
+    a = [e["input_ids"] for e in train_mod.build_data(cfg, Tok())[0]]
+    assert a == [e["input_ids"] for e in train_mod.build_data(cfg, Tok())[0]] and a != [e["input_ids"] for e in train]
+    cfg.seed = cfg.seed + 1
+    assert a != [e["input_ids"] for e in train_mod.build_data(cfg, Tok())[0]]
 
 
 def test_group_losses_need_cache(tmp_path):

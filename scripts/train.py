@@ -142,6 +142,10 @@ def build_data(cfg, tokenizer):
         print(f"data: train text from {train_file}")
     else:
         train_texts = load_split(lang, "train", num_train_examples(cfg))
+    if cfg_get(cfg, "data.shuffle", False):
+        # A seeded order. Without it the seed may change nothing at all: zero-init heads and a frozen
+        # backbone make training deterministic in the data order, so a seed replicate needs a new order.
+        random.Random(cfg.seed).shuffle(train_texts)
     eval_texts = load_split(lang, cfg_get(cfg, "data.eval_split", "eval_small"))[:eval_n]
     labelled = f"labelled with {grouper_name}" if grouper else f"no grouper ({grouper_name!r} not registered)"
     print(f"data: raw IndicCorp text, {len(train_texts)} train / {len(eval_texts)} eval sentences, {labelled}")
