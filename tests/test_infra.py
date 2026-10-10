@@ -110,3 +110,27 @@ def test_save_run_keeps_last_two(tmp_path, tiny_model_dir):
         save_run(tmp_path, model, cfg, step)
     assert sorted(p.name for p in tmp_path.glob("step_*")) == ["step_1", "step_3", "step_4"]
     assert latest_step(tmp_path) == 4 and latest_step(tmp_path / "nope") is None
+
+
+def test_load_lora_copies_only_the_adapter(tmp_path, tiny_model_dir):
+    """init_lora_from (Rsd on top of R8): a fresh model gets the run's LoRA, its heads stay fresh."""
+    import torch
+
+    from mtp.model.build import build_model
+    from mtp.model.checkpoint import load_lora
+
+    cfg = load_config(ROOT / "configs" / "R2.yaml")
+    cfg.model_name, cfg.num_heads, cfg.dtype = str(tiny_model_dir), 2, "fp32"
+    src, _ = build_model(cfg, "cpu")
+    with torch.no_grad():
+        for p in src.parameters():
+            p.add_(torch.randn_like(p) * 0.1)
+    save_run(tmp_path, src, cfg, 5)
+    torch.manual_seed(1)
+    dst, _ = build_model(cfg, "cpu")
+    heads_before = {k: v.clone() for k, v in dst.head_state_dict().items()}
+    load_lora(dst, tmp_path / "step_5")
+    s, d = dict(src.named_parameters()), dict(dst.named_parameters())
+    lora = [k for k in s if "lora_" in k]
+    assert lora and all(torch.equal(s[k], d[k]) for k in lora)
+    assert all(torch.equal(v, dst.head_state_dict()[k]) for k, v in heads_before.items())
