@@ -27,6 +27,7 @@ def main(argv=None):
     ap.add_argument("--lang", default="hi")
     ap.add_argument("--model_name", default="LingoIITGN/ganga-1b")
     ap.add_argument("--n", type=int, default=16000, help="sentences in total (over all shards)")
+    ap.add_argument("--skip", type=int, default=0, help="skip the first SKIP train sentences (new prompts for more data)")
     ap.add_argument("--shard", type=int, default=0)
     ap.add_argument("--num_shards", type=int, default=1)
     ap.add_argument("--max_new_tokens", type=int, default=64)
@@ -56,7 +57,7 @@ def main(argv=None):
         tok.pad_token = tok.unk_token
     model = AutoModelForCausalLM.from_pretrained(args.model_name, dtype=dtype).to(device).eval()
 
-    texts = load_split(args.lang, "train", args.n)
+    texts = load_split(args.lang, "train", args.skip + args.n)[args.skip:]
     rng = random.Random(args.seed)
     prompts = []
     for t in texts:  # every sentence gets a prompt length, so shards are deterministic
