@@ -120,10 +120,11 @@ Same seed (42), same data order, eval during training on `eval_small` (pilots on
 | R1 | P0 | hi | 2 linear (α=1) | – | sum | – | reproduce laptop MTP (gate) | running |
 | R2 | P0 | hi | 4 resblock | – | fixed 0.8^d | – | token-level MTP baseline | running |
 | pilots | P0 | hi | 4 resblock | S2 / S3 / S3-chain / S23 / S3-all | fixed | v0 | pick the structural loss (+ `pilot_R2ref`) | ready |
-| R3 | P0 | hi | 4 resblock | structural (pilot winner) | fixed | best | method, part 1 | after pilots |
-| R6a | P0 | hi | 4 resblock | = R3 | fixed | **random** | control: is it the linguistics? | needs JI-4 |
-| R5 | P1 | hi | 4 resblock | structural (+ contrastive if R4 helps) | adaptive (pilot winner) | best | full method | after JN-7 pilots |
-| R6 | P1 | hi | = R5 | | | **random** | control for the full method | |
+| R3 | P0 | hi | 4 resblock | structural (S23_mix 0.25/0.25, chain) | fixed | v0 | method, part 1 | done (`mtp-run-R3`) |
+| R6a | P0 | hi | 4 resblock | = R3 | fixed | **random** | control: is it the linguistics? | done (`mtp-run-R6a`) |
+| R5 | P1 | hi | 4 resblock | = R3 | adaptive (JN-7b pilot winner) | v0 | full method (unfrozen line) | **only if** a `pilot_w_*` beats `pilot_w_fixed` with a 95% CI excluding 0 on in-group top-1 or acceptance (#36); else a negative row |
+| R6 | P1 | hi | = R5 | | | **random** | control for the full method | only if R5 runs |
+| Rsd | P0 | hi | 4 resblock, **frozen backbone** | – (CE on self-distilled text) | fixed (weighting is a no-op when frozen, #36) | – | fast line: lossless, + trees (JN-9) | done (`mtp-run-Rsd`, `mtp-run-Rsd-s43`) |
 | R4 | P2 | hi | 4 resblock | structural + contrastive | fixed | best | does contrastive add anything? | needs JN-6 |
 | R7 | P2 | hi | = R5 | | | other grouper | grouper ablation | needs JI-3/JI-5 |
 | R8 | P1 | mr | 1 | – | – | – | Marathi NTP | |
