@@ -41,14 +41,29 @@ On eval_small the h0 loss is flat from step 250 (3.052) to 12500 (3.049), so the
 
 ### Method runs (Kaggle T4 x2, account `jainam2142`)
 
-Pilots that led here: `docs/design_structural_loss.md` §5. Step 12500. Logged eval: R3 on eval_small (like R0-R2); Rsd on `eval` (~500 sentences).
+Pilots that led here: `docs/design_structural_loss.md` §5. Step 12500. Logged eval (`train.py`): eval_small for the R3 line, R8-R10a and A1; `eval` (~500 sentences) for the Rsd line. Logged in-group / boundary uses each run's **own** grouper, so for runs trained with random groups (R6a, R6a_s43, R10a, Rsd_mr) it is not comparable; the comparisons below fix the labels.
 
 | ID | commit | config | Kaggle dataset | h0 | h1 | h2 | h3 | notes |
 |---|---|---|---|---|---|---|---|---|
 | R3 | 75b1db5 | R3.yaml (S23_mix, λ 0.25 / 0.25, chain) | `jainam2142/mtp-run-R3` | 3.056 (39.5%) | 5.497 (15.0%) | 6.382 (8.1%) | 6.773 (4.9%) | 2026-10-10; eval_small; h1 in-group / boundary 28.8 / 14.0% |
 | Rsd | a4f1ff4 | Rsd.yaml (frozen backbone, self-distillation, 100k texts) | `jainam2142/mtp-run-Rsd` | 2.865 (42.2%) | 5.967 (13.9%) | 6.869 (7.1%) | 7.250 (4.5%) | 2026-10-10; `eval`; head 0 = base model exactly |
-| Rsd_s43 | a4f1ff4 | Rsd_s43.yaml (= Rsd, seed 43 + `data.shuffle`) | not published | 2.865 (42.2%) | 5.969 (14.0%) | 6.878 (7.2%) | 7.257 (4.3%) | replicate of Rsd |
-| R6a | 1124204 | R6a.yaml (= R3, `grouper: random`) | — | | | | | running 2026-10-10; compare with R3 using `--grouper hi_rules_v0` |
+| Rsd_s43 | a4f1ff4 | Rsd_s43.yaml (= Rsd, seed 43 + `data.shuffle`) | `jainam2142/mtp-run-Rsd-s43` | 2.865 (42.2%) | 5.969 (14.0%) | 6.878 (7.2%) | 7.257 (4.3%) | replicate of Rsd |
+| R6a | 1124204 | R6a.yaml (= R3, `grouper: random`) | `jainam2142/mtp-run-R6a` | 3.057 (39.5%) | 5.474 (14.8%) | 6.342 (8.0%) | 6.743 (5.4%) | 2026-10-10; eval_small; compare with R3 under `hi_rules_v0` (below) |
+| R3_s43 | #44 | R3_s43.yaml (= R3, seed 43 + `data.shuffle`) | `jainam2142/mtp-run-R3-s43` | 3.057 (39.5%) | 5.494 (14.4%) | 6.387 (7.6%) | 6.786 (4.6%) | 2026-10-10; laptop RTX 4060 (bf16); in-group h1 / h2 / h3 25.2 / 24.6 / 20.0% |
+| R6a_s43 | #44 | R6a_s43.yaml (= R6a, seed 43 + `data.shuffle`) | `jainam2142/mtp-run-R6a-s43` | 3.055 (39.5%) | 5.461 (14.4%) | 6.354 (7.2%) | 6.751 (4.9%) | 2026-10-10; account `jainamrampuria` |
+| A1_alpha0 | #35 | A1_alpha0.yaml (= R2, α = 0) | `jainamrampuria/mtp-run-A1-alpha0` | 3.051 (39.7%) | 5.596 (13.5%) | 6.481 (7.8%) | 6.880 (4.3%) | official eval below |
+| A1_alpha1 | #35 | A1_alpha1.yaml (= R2, α = 1) | `jainamrampuria/mtp-run-A1-alpha1` | 3.175 (38.1%) | 5.392 (14.5%) | 6.230 (8.4%) | 6.611 (4.9%) | official eval below |
+| R8 | — | R8.yaml (Misal-1B, NTP) | `jainam2142/mtp-run-R8` | 4.127 (31.9%) | | | | eval_small (mr) |
+| R9 | — | R9.yaml (Misal-1B, = R2) | `jainam2142/mtp-run-R9` | 4.132 (31.6%) | 6.576 (13.5%) | 7.373 (8.7%) | 7.716 (7.2%) | eval_small (mr) |
+| R10 | #43 | R10.yaml (= R3 recipe, `mr_rules_v1`) | `jainam2142/mtp-run-R10` | 4.159 (31.2%) | 6.494 (13.7%) | 7.296 (9.3%) | 7.635 (7.1%) | eval_small (mr) |
+| R10a | #43 | R10a.yaml (= R10, `random_mr_v1`) | `jainam2142/mtp-run-R10a` | 4.157 (31.3%) | 6.490 (13.8%) | 7.282 (9.0%) | 7.628 (7.2%) | eval_small (mr) |
+| Rsd_soft | #42 | Rsd_soft.yaml (= Rsd + soft labels, S3_all λ 1, teacher h0) | `jainam2142/mtp-run-Rsd-soft` | 2.865 (42.2%) | 5.693 (14.3%) | 6.638 (7.4%) | 7.025 (4.9%) | `eval` |
+| Rsd_k6 | #42 | Rsd_k6.yaml (= Rsd, 6 heads) | `jainam2142/mtp-run-Rsd-k6` | 2.865 (42.2%) | 5.967 (13.8%) | 6.869 (7.1%) | 7.249 (4.5%) | `eval`; h4 7.447 (3.5%), h5 7.573 (2.9%) |
+| Rsd_mr | #42 | Rsd_mr.yaml (frozen Misal, self-distillation, `min_new_tokens 64`) | `jainam2142/mtp-run-Rsd-mr` | 4.890 (27.8%) | 7.833 (9.3%) | 8.552 (5.7%) | 8.840 (4.3%) | `eval` (mr); head 0 = Misal-instruct as is |
+| Rsd_mr_soft | #42 | Rsd_mr_soft.yaml (= Rsd_mr + soft labels) | `jainam2142/mtp-run-Rsd-mr-soft` | 4.890 (27.8%) | 7.666 (9.3%) | 8.394 (5.6%) | 8.683 (4.3%) | `eval` (mr) |
+| Rsd_long, Rsd_data2x | #42 | 2× data and 2× steps / 2× data, same steps | — | | | | | running 2026-10-10 |
+
+`mtp-run-R3-s43`, `-R6a-s43`, `-Rsd-mr`, `-Rsd-mr-soft` are public; the others are private and shared with Om.
 
 **Acceptance (Jainam's check, not the official eval):** FixedK on 100 IndicCorp-eval prompts (`make_prompts(..., seed=1)`), RTX 4060, paired bootstrap vs R2.
 
@@ -258,3 +273,63 @@ In-group targets per head (R9, IndicCorp): h0 10,214, h1 3,931, h2 1,256, h3 444
 - **In-group vs boundary gap is much larger than in Hindi:** h1 28.3% in-group vs 8.6% at boundaries (3.3×; Hindi R2 1.6×). That's the word-internal structure Jainam's tree oracle picks up (#33).
 - **EOS is not an issue for these prompts:** greedy took ~2.8 s per prompt at 23 tok/s ≈ 64 tokens, i.e. almost no prompt stopped early. Prompts are cut mid-sentence, unlike the train prompts in #39.
 
+## JN-7b: loss-weighting pilots (Table 5, #36)
+
+4 pilots × 2k steps on the R3 recipe (`configs/pilot_w_*.yaml`), each differing from `R3.yaml` only in `max_steps: 2000` and the `weighting` line. Paired bootstrap vs `pilot_w_fixed` (2000 resamples; 500 IndicCorp eval sentences for top-1, 100 prompts for tokens/step; labels `hi_rules_v0`; 95% CI). Points.
+
+| pilot | weighting | h0 eval loss | h1 in-group top-1 | mean top-1 h1-3 | FixedK tokens/step |
+|---|---|---|---|---|---|
+| `pilot_w_fixed` | fixed 0.8^d (= R3) | 3.057 | ref | ref | ref |
+| `pilot_w_unc` | uncertainty, head 0 fixed | 3.054 | +0.6 [−0.2, +1.4] | −0.12 [−0.26, +0.01] | −0.012 [−0.035, +0.014] |
+| `pilot_w_unc_free` | uncertainty, head 0 free | **3.198 (+0.14)** | **+1.8 [+0.8, +2.8]** | +0.24 [+0.09, +0.40] | +0.014 [−0.023, +0.047] |
+| `pilot_w_dwa` | DWA | 3.057 | +0.05 [−0.3, +0.4] | −0.03 [−0.07, +0.01] | −0.011 [−0.030, +0.002] |
+
+- **Negative row:** with head 0 protected (`unc`, DWA), adaptive weighting is flat on every metric. `unc_free` gains in-group top-1 only by down-weighting head 0, so the verifier loses 0.14 nats: the same trade-off as α = 1 (A1). So R5 / R6 are not run (#36).
+- **On a frozen backbone (Rsd), weighting is a no-op:** each head has its own parameters, and AdamW divides out a per-parameter loss scale. Rsd config, 200 steps, only `head_decay` changed: h1 eval loss 6.4244 (0.8^d) / 6.4248 (equal) / 6.4263 (0.3^d).
+
+## R3 vs R6a: paired bootstrap (Jainam's check, #39)
+
+Same token-level evaluation as above (500 IndicCorp eval sentences, labels `hi_rules_v0` for **every** run, so the in-group targets are the same: 1,886 / 557 / 171 for h1 / h2 / h3; matches OM-8). Difference vs R2 in points, 95% CI.
+
+| vs R2 | h1 in-group | h2 in-group | h3 in-group | accepted len (100 prompts) |
+|---|---|---|---|---|
+| R3 | +2.4 [+1.5, +3.4] | +5.0 [+2.6, +7.7] | +4.7 [+0.5, +9.5] | −0.003 [−0.024, +0.020] |
+| R6a (random groups) | +1.8 [+1.0, +2.6] | +2.5 [+0.4, +4.9] | +2.3 [−0.7, +5.6] | −0.002 [−0.024, +0.021] |
+
+- At h1 the extra loss itself gives most of the gain (1.8 of 2.4 points). At h2 / h3 about half of R3's gain needs the linguistic groups.
+- The direct R3 − R6a CI and the seed-43 pair (R3_s43 / R6a_s43) follow in #39.
+
+## Marathi: R10 / R10a (structural loss, Jainam's check)
+
+R10 = R3 recipe on Misal-1B with `mr_rules_v1`; R10a = the same with `random_mr_v1` (length-matched random groups). Labels `mr_rules_v1` for all three runs (in-group targets h1 / h2 / h3: 3,931 / 1,256 / 444). Difference vs R9 in points, 95% CI.
+
+| vs R9 | h1 in-group | h2 in-group | h3 in-group | accepted len (100 prompts) |
+|---|---|---|---|---|
+| R10 (`mr_rules_v1`) | +2.2 [+1.5, +3.0] | +1.2 [+0.1, +2.3] | +1.6 [−0.5, +3.7] | +0.028 [−0.009, +0.068] |
+| R10a (`random_mr_v1`) | +2.6 [+1.9, +3.4] | +1.4 [+0.3, +2.6] | +0.9 [−1.4, +3.3] | +0.027 [−0.007, +0.066] |
+
+- **In Marathi the structural loss gains the same with random groups** (R10 ≈ R10a at every head). The linguistic groups still matter at decoding time: on R9's draft trees, groups beat random and word starts (#33).
+
+## Rsd line: variants (Jainam's check)
+
+FixedK chain on 100 IndicCorp eval prompts (RTX 4060 or T4), paired bootstrap vs Rsd. Offline tree oracle (`scripts/fit_tree.py`, accepted drafts per step on 200 eval prompts, teacher-forced; +1 = tokens/step): the per-position oracle overstates real decoding (real / offline ≈ 0.86 for k = 4).
+
+| run | chain tokens/step vs Rsd | tree n25 | tree n40 | tree n64 (entropy-shaped) |
+|---|---|---|---|---|
+| Rsd | ref (offline chain 0.908) | 1.554 | 1.656 | 1.752 |
+| Rsd_soft (soft labels) | −0.001 | 1.543 | 1.641 | 1.741 |
+| Rsd_k6 (6 heads) | +0.037 [+0.023, +0.055] | 1.695 | 1.818 | 1.933 |
+
+- Soft labels: same as hard labels at full length (the 2k-step pilot's +0.019 did not hold). Negative row.
+- k = 6: small chain gain; the offline tree gain (+0.14-0.18) is to be checked on T4 with `generate_tree()` (OM).
+
+**Marathi Rsd (frozen Misal-1B-instruct).** Misal-instruct stops after one sentence (median 6 generated tokens), so the self-distilled text is generated with `--min_new_tokens 64`. At decode time head 0 also stops: 66% of the 100 eval prompts end within 10 tokens. With head 0's `</s>` logit masked (still lossless with respect to the masked model):
+
+| run | tokens/step, stop at `</s>` (mean generated) | tokens/step, `</s>` masked | vs R9 (masked) |
+|---|---|---|---|
+| R9 | 1.306 (64.0) | 1.306 | ref |
+| Rsd_mr | 1.356 (14.0) | **1.539** | **+0.233 [+0.174, +0.299]** |
+| Rsd_mr_soft | 1.415 (14.0) | 1.526 | +0.220 [+0.160, +0.287] |
+
+- Self-distillation transfers to Marathi (Hindi: Rsd − R2 = +0.28 on the same check). Soft = hard again.
+- **Caveat:** Rsd_mr speeds up Misal-instruct as is, whose head 0 (4.89 on `eval`) is much weaker on IndicCorp than the LoRA-tuned R8/R9 (4.25 official). Evaluate it with `ignore_eos` (OM).
