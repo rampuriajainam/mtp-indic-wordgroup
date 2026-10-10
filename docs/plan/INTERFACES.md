@@ -277,6 +277,26 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
 def make_prompts(texts, tokenizer, n=200, min_words=8, max_words=16, seed=0) -> list[list[int]]
 # amp: a context-manager factory, e.g. lambda: autocast_ctx(cfg). The engine clamps a policy's answer to 0..k-1.
 ```
+Tree drafts (issue #33; Jainam: policies in `mtp/eval/tree_policy.py`; Om: `generate_tree()` verifies them):
+```python
+# mtp/eval/tree_policy.py
+class TreePolicy(Protocol):
+    name: str
+    max_nodes: int   # the largest tree it ever returns (size the verify pass / benchmark with it)
+    def tree(self, head_logits: list[torch.Tensor], context_ids: torch.Tensor, step_state: dict) -> list[tuple[int, int, int]]:
+        """Nodes (parent, d, rank), parents before children. parent = node index, -1 = the root t0
+        (head 0's argmax, always kept); d = the drafting head, = parent's d + 1 (root's d = 0);
+        rank = 0-based rank in head d's logits at the last position (0 = argmax)."""
+
+class StaticTree:   # same tree every step: fitted Medusa sparse tree, or StaticTree.from_widths((3, 2, 1))
+class EntropyTree:  # one fitted tree per entropy cell (head d's entropy above its calibration median)
+TREE_POLICIES = {"static_tree": StaticTree, "entropy_tree": EntropyTree}
+def draft_tokens(nodes, head_logits) -> list[int]        # token id per node
+def accepted_length(nodes, ranks) -> int                 # oracle count; generate_tree must match it
+def save_policy(policy, path); def load_policy(path) -> TreePolicy   # JSON
+```
+`scripts/fit_tree.py --run_dir <run>` fits both on IndicCorp train prompts and writes `results/{run_name}/tree_policy_{static,entropy}_n{N}.json` plus `tree_fit.json` (oracle accepted drafts/step on IndicCorp eval).
+
 Correctness: the output must be **identical** to plain greedy decoding with head 0 (the test). Stats: tokens generated, forward passes, mean accepted length, per-head acceptance, tokens/s, Group Integrity (share of accepted multi-token spans that end on a group boundary).
 
 ## 12. Grouping statistics and probing outputs (Jai)
