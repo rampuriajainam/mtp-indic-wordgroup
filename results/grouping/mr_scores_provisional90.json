@@ -1,0 +1,176 @@
+{
+  "official_gold": true,
+  "complete_gold": false,
+  "scores": {
+    "mr_rules_v1": {
+      "boundary": {
+        "precision": 0.32954545454545453,
+        "recall": 0.48333333333333334,
+        "f1": 0.3918918918918919,
+        "tp": 29,
+        "fp": 59,
+        "fn": 31
+      },
+      "exact_group_accuracy": 0.8911111111111111,
+      "sentence_exact_accuracy": 0.3111111111111111,
+      "n_sentences": 90,
+      "n_gold_groups": 1350,
+      "per_type": {
+        "aux_chain": {
+          "precision": 0.203125,
+          "recall": 0.5416666666666666,
+          "f1": 0.29545454545454547,
+          "tp": 13,
+          "fp": 51,
+          "fn": 11
+        },
+        "single": {
+          "precision": 0.9554655870445344,
+          "recall": 0.9097918272937549,
+          "f1": 0.9320695102685624,
+          "tp": 1180,
+          "fp": 55,
+          "fn": 117
+        },
+        "postposition": {
+          "precision": 0.30434782608695654,
+          "recall": 0.5,
+          "f1": 0.3783783783783784,
+          "tp": 7,
+          "fp": 16,
+          "fn": 7
+        },
+        "other": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 6
+        },
+        "light_verb": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 9
+        }
+      }
+    },
+    "stanza": {
+      "boundary": {
+        "precision": 0.27205882352941174,
+        "recall": 0.6166666666666667,
+        "f1": 0.37755102040816324,
+        "tp": 37,
+        "fp": 99,
+        "fn": 23
+      },
+      "exact_group_accuracy": 0.8385185185185186,
+      "sentence_exact_accuracy": 0.24444444444444444,
+      "n_sentences": 90,
+      "n_gold_groups": 1350,
+      "per_type": {
+        "aux_chain": {
+          "precision": 0.19767441860465115,
+          "recall": 0.7083333333333334,
+          "f1": 0.3090909090909091,
+          "tp": 17,
+          "fp": 69,
+          "fn": 7
+        },
+        "single": {
+          "precision": 0.9649737302977233,
+          "recall": 0.8496530454895914,
+          "f1": 0.9036490364903649,
+          "tp": 1102,
+          "fp": 40,
+          "fn": 195
+        },
+        "postposition": {
+          "precision": 0.15555555555555556,
+          "recall": 0.5,
+          "f1": 0.23728813559322035,
+          "tp": 7,
+          "fp": 38,
+          "fn": 7
+        },
+        "other": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 1,
+          "fn": 6
+        },
+        "light_verb": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 9
+        }
+      }
+    },
+    "random_mr_v1": {
+      "boundary": {
+        "precision": 0.015873015873015872,
+        "recall": 0.016666666666666666,
+        "f1": 0.016260162601626018,
+        "tp": 1,
+        "fp": 62,
+        "fn": 59
+      },
+      "exact_group_accuracy": 0.8733333333333333,
+      "sentence_exact_accuracy": 0.2111111111111111,
+      "n_sentences": 90,
+      "n_gold_groups": 1350,
+      "per_type": {
+        "aux_chain": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 24
+        },
+        "single": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 1297
+        },
+        "other": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 1347,
+          "fn": 6
+        },
+        "postposition": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 14
+        },
+        "light_verb": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "tp": 0,
+          "fp": 0,
+          "fn": 9
+        }
+      }
+    }
+  },
+  "agreement": null,
+  "best_by_boundary_f1": null
+}
