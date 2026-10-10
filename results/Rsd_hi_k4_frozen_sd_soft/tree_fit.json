@@ -1,0 +1,26 @@
+{
+ "run_name": "Rsd_hi_k4_frozen_sd_soft",
+ "step": 12500,
+ "n_calib_positions": 18300,
+ "n_eval_positions": 12200,
+ "chain": 0.9071311475409836,
+ "rows": [
+  {
+   "max_nodes": 25,
+   "static": 1.5234426229508198,
+   "entropy": 1.5432786885245902,
+   "product(5, 2, 1)": 1.3608196721311476
+  },
+  {
+   "max_nodes": 40,
+   "static": 1.628032786885246,
+   "entropy": 1.6413934426229508
+  },
+  {
+   "max_nodes": 64,
+   "static": 1.726311475409836,
+   "entropy": 1.7409016393442622
+  }
+ ],
+ "note": "oracle accepted drafts per step on IndicCorp eval greedy text (teacher-forced)"
+}
