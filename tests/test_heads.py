@@ -168,3 +168,69 @@ def test_head_state_dict_roundtrip_and_legacy_format():
     assert torch.equal(lin.extra_heads[0].weight, legacy["0.weight"])
     with pytest.raises(KeyError):
         dst.load_head_state_dict({"extra_heads.0.0.linear.weight": torch.zeros(H, H)})
+
+
+# ----------------------------------------------------------------------------- sequential heads
+
+def _seq_model(num_heads=4, perturb=True):
+    model = MTPModel(tiny_base(), num_heads=num_heads, head_type="seq").eval()
+    if perturb:
+        torch.manual_seed(3)
+        with torch.no_grad():
+            for p in model.extra_heads.parameters():
+                p.add_(torch.randn_like(p) * 0.5)
+    return model
+
+
+def test_seq_heads_start_as_head0():
+    model = _seq_model(perturb=False)
+    ids, mask = batch()
+    with torch.no_grad():
+        out = model(ids, attention_mask=mask)
+    for lg in out.logits[1:]:
+        torch.testing.assert_close(lg, out.logits[0])
+
+
+def test_seq_head_d_reads_tokens_up_to_t_plus_d():
+    model = _seq_model()
+    torch.manual_seed(5)
+    ids = torch.randint(3, V, (1, 10))
+    with torch.no_grad():
+        ref = model(ids).logits
+    t = 2
+    for d in range(1, 4):
+        later = ids.clone()
+        later[0, t + d + 1:] = (later[0, t + d + 1:] + 1) % V      # tokens after t+d: no effect on head d at t
+        same = model(later).logits[d][0, t]
+        torch.testing.assert_close(same, ref[d][0, t])
+        moved = ids.clone()
+        moved[0, t + d] = (moved[0, t + d] + 1) % V                  # token t+d: head d at t sees it
+        assert not torch.allclose(model(moved).logits[d][0, t], ref[d][0, t])
+
+
+def test_draft_chain_matches_teacher_forced_argmax():
+    model = _seq_model()
+    torch.manual_seed(6)
+    ids = torch.randint(3, V, (1, 6))
+    t = ids.shape[1] - 1
+    with torch.no_grad():
+        out = model(ids)
+        t0 = int(out.logits[0][0, t].argmax())
+        drafts = model.draft_chain(out.hidden[0, t], t0, 3)
+        full = torch.tensor([ids[0].tolist() + [t0] + drafts])
+        tf = model(full).logits
+    assert len(drafts) == 3
+    for d in range(1, 4):
+        assert int(tf[d][0, t].argmax()) == drafts[d - 1]
+
+
+@pytest.mark.parametrize("head_type", ["resblock", "seq"])
+def test_extra_heads_false_gives_head0_only(head_type):
+    model = MTPModel(tiny_base(), num_heads=3, head_type=head_type).eval()
+    ids, mask = batch()
+    with torch.no_grad():
+        full = model(ids, attention_mask=mask)
+        h0 = model(ids, attention_mask=mask, extra_heads=False)
+    assert len(h0.logits) == 1
+    torch.testing.assert_close(h0.logits[0], full.logits[0])
+    torch.testing.assert_close(h0.hidden, full.hidden)

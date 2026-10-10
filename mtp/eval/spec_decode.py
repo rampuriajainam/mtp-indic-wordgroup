@@ -69,6 +69,8 @@ def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None,
     k = model.num_heads
     ban = tokenizer.eos_token_id if ignore_eos else None
     eos = None if ignore_eos else tokenizer.eos_token_id      # None: never stop early
+    seq_heads = getattr(model, "head_type", None) == "seq"   # drafts from draft_chain; verify passes skip the heads
+    fwd = {"extra_heads": False} if seq_heads else {}
     seq = [int(t) for t in prompt_ids]
     new, spans = [], []
     proposed, accepted = [0] * (k - 1), [0] * (k - 1)
@@ -77,18 +79,21 @@ def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None,
     _sync(device)
     t_start = time.perf_counter()
     with amp():
-        out = model(torch.tensor([seq], device=device), use_cache=use_cache)
+        out = model(torch.tensor([seq], device=device), use_cache=use_cache, **fwd)
         passes += 1
         cache = out.aux.get("past_key_values")
         pos = -1                                   # index (in out's positions) of the last emitted token
         while len(new) < max_new_tokens:
             last = [lg[0, pos] for lg in out.logits]
             t0 = int(_no_eos(last[0], ban).argmax())
+            if seq_heads:
+                chain, chain_logits = model.draft_chain(out.hidden[0, pos], t0, k - 1, return_logits=True)
+                last = last[:1] + chain_logits
             n = policy.num_draft_tokens(last, torch.tensor(seq), _step_state(out, pos, tokenizer, grouper, steps))
             n = max(0, min(int(n), k - 1, max_new_tokens - len(new) - 1))
             if t0 == eos:
                 n = 0
-            drafts = [int(last[d].argmax()) for d in range(1, n + 1)]
+            drafts = chain[:n] if seq_heads else [int(last[d].argmax()) for d in range(1, n + 1)]
             block = [t0] + drafts
 
             if n == 0 and (t0 == eos or len(new) + 1 >= max_new_tokens):
@@ -98,7 +103,7 @@ def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None,
                 break
 
             inp = block if use_cache else seq + block
-            out = model(torch.tensor([inp], device=device), past_key_values=cache, use_cache=use_cache)
+            out = model(torch.tensor([inp], device=device), past_key_values=cache, use_cache=use_cache, **fwd)
             passes += 1
             head0 = _no_eos(out.logits[0][0, -len(block):], ban)  # row i predicts the token after block[i]
             j = 0

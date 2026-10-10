@@ -126,13 +126,14 @@ class MTPOutput:
 class MTPModel(nn.Module):
     def __init__(self, base_model, num_heads: int, head_type: str = "linear", n_layers: int = 1,
                  backbone_grad: float = 1.0, boundary_probes: bool = False, **kw): ...
-    def forward(self, input_ids, attention_mask=None, use_cache: bool = False, **kw) -> MTPOutput: ...
+    def forward(self, input_ids, attention_mask=None, use_cache: bool = False, extra_heads: bool = True, **kw) -> MTPOutput: ...  # extra_heads=False: logits = [head 0] only
     def head_state_dict(self) -> dict          # extra heads + probes = heads.pt
     def load_head_state_dict(self, state)      # also accepts the legacy extra_heads-only format
+    def draft_chain(self, h, t0: int, n: int, return_logits=False)   # head_type "seq": n greedy chain drafts after t0 (+ their logits)
     num_heads: int; head_type: str; extra_heads: nn.ModuleList; boundary_probes: nn.ModuleList
 ```
 - `num_heads` counts all heads including head 0 (the base LM head).
-- `head_type`: `"linear"` (fresh `nn.Linear(hidden, vocab)`, R1), `"resblock"` (h_d = h + SiLU(W h + b), W, b zero-init, logits = frozen `lm_head(h_d)`).
+- `head_type`: `"linear"` (fresh `nn.Linear(hidden, vocab)`, R1), `"resblock"` (h_d = h + SiLU(W h + b), W, b zero-init, logits = frozen `lm_head(h_d)`), `"seq"` (sequential heads: s_0 = h_t, s_d = s_{d-1} + SiLU(W_d [s_{d-1}; e(x_{t+d})] + b_d), e = detached input embeddings, W_d zero-init, logits = `lm_head(s_d)`; `forward` teacher-forces x_{t+d} from `input_ids` (zeros past the end), so decoding gets drafts from `draft_chain`; `spec_decode.generate` does this automatically, gives the policy the chain's logits, and runs verify passes with `extra_heads=False`).
 - `backbone_grad`: share of heads 1..k-1's gradient that reaches the backbone (0 = detached). Forward is identical for every value.
 - `aux["head_hidden"]`: list of k `[B, T, H]` (what each head's output layer reads). `aux["boundary_logits"]`: list of k `[B, T]`, logit that token t+d+1 starts a word group (only with probes). `aux["past_key_values"]`: only with `use_cache=True`.
 
@@ -150,7 +151,7 @@ run_name: R2_hi_mtp_k4_resblock
 lang: hi
 model_name: LingoIITGN/ganga-1b
 num_heads: 4
-head_type: resblock               # linear | resblock
+head_type: resblock               # linear | resblock | seq
 head_layers: 1                    # resblocks per head
 head_backbone_grad: 0.1           # α; 1.0 = full joint training
 lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}
