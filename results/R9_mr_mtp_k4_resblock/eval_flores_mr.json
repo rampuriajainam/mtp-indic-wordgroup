@@ -1,0 +1,113 @@
+{
+  "run_name": "R9_mr_mtp_k4_resblock",
+  "dataset": "flores_mr",
+  "step": 12500,
+  "grouper": "mr_rules_v1",
+  "git_commit": "0b9dd36ef07e5897854633bbec8303783b28c4ec",
+  "per_head": [
+    {
+      "head": 0,
+      "loss": 4.904886734376951,
+      "ppl": 134.94762421441388,
+      "top1": 0.2360596591824244,
+      "top5": 0.4165190220017395,
+      "n": 31043,
+      "top1_in_group": 0.3947710419692684,
+      "loss_in_group": 3.090631565910242,
+      "n_in_group": 13081,
+      "top1_at_boundary": 0.12619469026548671,
+      "loss_at_boundary": 6.0985146041465015,
+      "n_at_boundary": 16950
+    },
+    {
+      "head": 1,
+      "loss": 7.519632853993581,
+      "ppl": 1843.8901928428131,
+      "top1": 0.07076021444507342,
+      "top5": 0.1526755685791349,
+      "n": 30031,
+      "top1_in_group": 0.16232159847764036,
+      "loss_in_group": 5.927183627810057,
+      "n_in_group": 5255,
+      "top1_at_boundary": 0.053526342366604945,
+      "loss_at_boundary": 7.8018015392941065,
+      "n_at_boundary": 23764
+    },
+    {
+      "head": 2,
+      "loss": 8.121819167944116,
+      "ppl": 3367.1405710868157,
+      "top1": 0.04979496192149971,
+      "top5": 0.11175436782797478,
+      "n": 29019,
+      "top1_in_group": 0.08208569953536396,
+      "loss_in_group": 6.9337642553484065,
+      "n_in_group": 1937,
+      "top1_at_boundary": 0.04852320675105485,
+      "loss_at_boundary": 8.175107964565802,
+      "n_at_boundary": 26070
+    },
+    {
+      "head": 3,
+      "loss": 8.317912323589722,
+      "ppl": 4096.59870229223,
+      "top1": 0.04481022601492484,
+      "top5": 0.10500946192023422,
+      "n": 28007,
+      "top1_in_group": 0.08088235294117647,
+      "loss_in_group": 7.0575130806249735,
+      "n_in_group": 680,
+      "top1_at_boundary": 0.044613338400152004,
+      "loss_at_boundary": 8.320607189748896,
+      "n_at_boundary": 26315
+    }
+  ],
+  "spec_decode": [
+    {
+      "policy": "fixed_k",
+      "mean_accepted_len": 1.297208200267848,
+      "accept_rate_per_head": [
+        0.23824976447189364,
+        0.05475228577503721,
+        0.010154477692556984
+      ],
+      "tokens_per_sec": 24.095444922061265,
+      "greedy_tokens_per_sec": 22.9867652255198,
+      "speedup": 1.0482312185148441,
+      "outputs_match_greedy": false,
+      "match_rate": 0.9,
+      "max_mismatch_margin": 0.0078125,
+      "fp32_check": {
+        "n_prompts": 20,
+        "match_rate": 1.0,
+        "outputs_match_greedy": true,
+        "max_mismatch_margin": null
+      },
+      "group_integrity": 0.7936294302377748,
+      "n_prompts": 200
+    },
+    {
+      "policy": "confidence_cut",
+      "mean_accepted_len": 1.06180959608736,
+      "accept_rate_per_head": [
+        0.5129209083790133,
+        0.2251655629139073,
+        0.08196721311475409
+      ],
+      "tokens_per_sec": 20.24854035077717,
+      "greedy_tokens_per_sec": 22.9867652255198,
+      "speedup": 0.8808781989167112,
+      "outputs_match_greedy": false,
+      "match_rate": 0.885,
+      "max_mismatch_margin": 0.0078125,
+      "fp32_check": {
+        "n_prompts": 20,
+        "match_rate": 1.0,
+        "outputs_match_greedy": true,
+        "max_mismatch_margin": null
+      },
+      "group_integrity": 0.7809076682316118,
+      "n_prompts": 200
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "run_name": "R8_mr_ntp",
+  "dataset": "indiccorp_eval",
+  "step": 12500,
+  "grouper": "mr_rules_v1",
+  "git_commit": "0b9dd36ef07e5897854633bbec8303783b28c4ec",
+  "per_head": [
+    {
+      "head": 0,
+      "loss": 4.251546176149493,
+      "ppl": 70.21389150554131,
+      "top1": 0.3018055065993029,
+      "top5": 0.4912857870207183,
+      "n": 25533,
+      "top1_in_group": 0.46240454278441356,
+      "loss_in_group": 2.7365598049279596,
+      "n_in_group": 10214,
+      "top1_at_boundary": 0.20122815304676428,
+      "loss_at_boundary": 5.155261414986936,
+      "n_at_boundary": 14819
+    }
+  ],
+  "spec_decode": null
+}

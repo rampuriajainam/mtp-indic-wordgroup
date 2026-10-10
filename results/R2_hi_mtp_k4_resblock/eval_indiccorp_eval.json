@@ -71,16 +71,17 @@
         0.07203579418344519,
         0.02446239617703948
       ],
-      "tokens_per_sec": 31.768016152777033,
-      "greedy_tokens_per_sec": 27.781932904255005,
-      "speedup": 1.14347753492384,
+      "tokens_per_sec": 31.764962658359256,
+      "greedy_tokens_per_sec": 27.69263383067974,
+      "speedup": 1.1470545868832427,
       "outputs_match_greedy": false,
       "match_rate": 0.875,
       "max_mismatch_margin": 0.0078125,
       "fp32_check": {
         "n_prompts": 20,
         "match_rate": 0.95,
-        "outputs_match_greedy": false
+        "outputs_match_greedy": false,
+        "max_mismatch_margin": 0.0
       },
       "group_integrity": 0.7571214392803598,
       "n_prompts": 200
@@ -93,16 +94,17 @@
         0.7323943661971831,
         0.8478260869565217
       ],
-      "tokens_per_sec": 26.074667720167323,
-      "greedy_tokens_per_sec": 27.781932904255005,
-      "speedup": 0.938547645695804,
+      "tokens_per_sec": 26.045533609238582,
+      "greedy_tokens_per_sec": 27.69263383067974,
+      "speedup": 0.9405220813768754,
       "outputs_match_greedy": false,
       "match_rate": 0.875,
       "max_mismatch_margin": 0.0078125,
       "fp32_check": {
         "n_prompts": 20,
         "match_rate": 1.0,
-        "outputs_match_greedy": true
+        "outputs_match_greedy": true,
+        "max_mismatch_margin": null
       },
       "group_integrity": 0.6705607476635514,
       "n_prompts": 200

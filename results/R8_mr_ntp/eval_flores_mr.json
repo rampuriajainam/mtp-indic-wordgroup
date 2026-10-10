@@ -1,0 +1,24 @@
+{
+  "run_name": "R8_mr_ntp",
+  "dataset": "flores_mr",
+  "step": 12500,
+  "grouper": "mr_rules_v1",
+  "git_commit": "0b9dd36ef07e5897854633bbec8303783b28c4ec",
+  "per_head": [
+    {
+      "head": 0,
+      "loss": 4.903371503149361,
+      "ppl": 134.74330219675835,
+      "top1": 0.23696163386270658,
+      "top5": 0.41796862416647873,
+      "n": 31043,
+      "top1_in_group": 0.3983640394465255,
+      "loss_in_group": 3.079953421931066,
+      "n_in_group": 13081,
+      "top1_at_boundary": 0.12625368731563422,
+      "loss_at_boundary": 6.102360159274751,
+      "n_at_boundary": 16950
+    }
+  ],
+  "spec_decode": null
+}
