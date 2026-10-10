@@ -37,5 +37,6 @@ def build_model(cfg, device):
     model = MTPModel(base, num_heads=cfg.num_heads, head_type=cfg.head_type,
                      n_layers=cfg_get(cfg, "head_layers", 1),
                      backbone_grad=cfg_get(cfg, "head_backbone_grad", 1.0),
-                     boundary_probes=uses_probes(cfg))
+                     boundary_probes=uses_probes(cfg),
+                     contrastive_dim=128 if cfg_get(cfg, "losses.contrastive.enabled", False) else 0)
     return model, tokenizer
