@@ -120,6 +120,10 @@ def build_data(cfg, tokenizer):
         cols = ["input_ids", "attention_mask", "group_start", "group_id"]
         train = load_from_disk(str(train_dir)).select_columns(cols if needs_groups(cfg) else cols[:2])
         train = train.select(range(min(len(train), num_train_examples(cfg))))
+        if cfg_get(cfg, "data.shuffle", False):  # the same seeded order as the raw-text path below
+            order = list(range(len(train)))
+            random.Random(cfg.seed).shuffle(order)
+            train = train.select(order)
         ev = load_from_disk(str(eval_dir)).select_columns(cols)
         ev = ev.select(range(min(len(ev), eval_n)))
         print(f"data: boundary cache {train_dir.name} ({len(train)} train) / {eval_dir.name} ({len(ev)} eval)")
