@@ -108,7 +108,11 @@ def print_spec(name, entries):
         gi = f"{100 * e['group_integrity']:.0f}%" if e["group_integrity"] is not None else "-"
         print(f"  {e['policy']:<15} accepted len {e['mean_accepted_len']:.2f} | accept/head {acc} | "
               f"{e['tokens_per_sec']:.1f} vs greedy {e['greedy_tokens_per_sec']:.1f} tok/s = x{e['speedup']:.2f} | "
-              f"match greedy {e['outputs_match_greedy']} | group integrity {gi} | {e['n_prompts']} prompts")
+              f"match greedy {e['outputs_match_greedy']} ({100 * e['match_rate']:.0f}% of prompts"
+              + (f", max margin at a divergence {e['max_mismatch_margin']:.3f}" if e["max_mismatch_margin"] is not None else "")
+              + ")" + (f" | fp32 re-check {e['fp32_check']['outputs_match_greedy']} on {e['fp32_check']['n_prompts']}"
+                       if e["fp32_check"] else "")
+              + f" | group integrity {gi} | {e['n_prompts']} prompts")
 
 
 def make_policies(names, tau):
@@ -122,11 +126,12 @@ def make_policies(names, tau):
 
 def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT / "results", dump_tokens=False,
                  spec_decode=False, policies=("fixed_k", "confidence_cut"), tau=0.5, spec_n=200, max_new_tokens=64,
+                 fp32_check_n=20,
                  heads=True, device="auto", batch_size=None, n=None, texts_fn=load_texts):
     """Evaluate one run on each dataset; returns {dataset: path of eval_{dataset}.json}.
     heads=False skips the per-head section (e.g. a session that only adds spec_decode)."""
     from mtp.data.collate import Collator
-    from mtp.device import autocast_ctx
+    from mtp.device import autocast_ctx, uses_fp16_autocast
     from mtp.eval.head_accuracy import evaluate_heads
     from mtp.eval.spec_decode import evaluate_spec_decode, make_prompts
     from mtp.model.checkpoint import load_run
@@ -164,8 +169,10 @@ def evaluate_run(run_dir, datasets, step=None, grouper_name=None, out_dir=ROOT /
                                       texts=texts, tokenizer=tokenizer)
         if draft_policies:
             prompts = make_prompts(texts, tokenizer, n=spec_n)
+            # fp16 autocast only where the run uses it (T4); the fp32 re-check then turns it off
+            amp = (lambda: autocast_ctx(cfg)) if uses_fp16_autocast(cfg) else None
             spec = evaluate_spec_decode(model, tokenizer, prompts, draft_policies, max_new_tokens=max_new_tokens,
-                                        grouper=grouper, amp=lambda: autocast_ctx(cfg), log_every=25)
+                                        grouper=grouper, amp=amp, log_every=25, fp32_check_n=fp32_check_n)
         record = {
             "run_name": cfg.run_name, "dataset": name, "step": model.loaded_step, "grouper": used_grouper,
             "git_commit": cfg_get(cfg, "git_commit"), "per_head": per_head, "spec_decode": spec,
@@ -195,6 +202,8 @@ def main(argv=None):
     ap.add_argument("--tau", type=float, default=0.5, help="confidence_cut threshold")
     ap.add_argument("--spec_n", type=int, default=200, help="prompts per dataset (first 8-16 words of a sentence)")
     ap.add_argument("--max_new_tokens", type=int, default=64)
+    ap.add_argument("--fp32_check_n", type=int, default=20,
+                    help="under fp16 autocast, re-run this many prompts in fp32: outputs must equal greedy")
     ap.add_argument("--device", default="auto")
     ap.add_argument("--batch_size", type=int, default=None, help="default: optim.batch_size of the run")
     ap.add_argument("--n", type=int, default=None, help="cap sentences per dataset (smoke tests)")
@@ -202,7 +211,8 @@ def main(argv=None):
 
     evaluate_run(args.run_dir, args.datasets, step=args.step, grouper_name=args.grouper, out_dir=args.out,
                  dump_tokens=args.dump_tokens, spec_decode=args.spec_decode, policies=args.policies, tau=args.tau,
-                 spec_n=args.spec_n, max_new_tokens=args.max_new_tokens, heads=not args.no_heads,
+                 spec_n=args.spec_n, max_new_tokens=args.max_new_tokens, fp32_check_n=args.fp32_check_n,
+                 heads=not args.no_heads,
                  device=args.device, batch_size=args.batch_size, n=args.n)
 
 

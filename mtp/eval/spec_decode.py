@@ -122,20 +122,23 @@ def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None,
 
 @torch.no_grad()
 def greedy_generate(model, tokenizer, prompt_ids, max_new_tokens, *, use_cache=True, amp=None):
-    """Plain greedy decoding with head 0 = the base LM (model.base_model). Returns (ids, stats)."""
+    """Plain greedy decoding with head 0 = the base LM (model.base_model). Returns (ids, stats);
+    stats["margins"][i] = top-1 minus top-2 logit when token i was chosen (small = a near-tie)."""
     device = next(model.parameters()).device
     amp = amp or contextlib.nullcontext
     base = model.base_model
     eos = tokenizer.eos_token_id
     seq = [int(t) for t in prompt_ids]
-    new, passes = [], 0
+    new, margins, passes = [], [], 0
     _sync(device)
     t_start = time.perf_counter()
     with amp():
         out = base(input_ids=torch.tensor([seq], device=device), use_cache=use_cache)
         passes += 1
         while True:
-            t = int(out.logits[0, -1].argmax())
+            top2 = out.logits[0, -1].float().topk(2)
+            t = int(top2.indices[0])
+            margins.append(float(top2.values[0] - top2.values[1]))
             new.append(t)
             seq.append(t)
             if t == eos or len(new) >= max_new_tokens:
@@ -147,7 +150,7 @@ def greedy_generate(model, tokenizer, prompt_ids, max_new_tokens, *, use_cache=T
     _sync(device)
     seconds = time.perf_counter() - t_start
     return new, {"tokens": len(new), "forward_passes": passes, "seconds": seconds,
-                 "tokens_per_sec": len(new) / seconds if seconds > 0 else 0.0}
+                 "tokens_per_sec": len(new) / seconds if seconds > 0 else 0.0, "margins": margins}
 
 
 def token_group_ids(ids, tokenizer, grouper):
@@ -204,9 +207,23 @@ def make_prompts(texts, tokenizer, n=200, min_words=8, max_words=16, seed=0):
     return prompts
 
 
+def first_divergence(a, b):
+    """Index of the first position where token lists a and b differ (None if identical)."""
+    for i, (x, y) in enumerate(zip(a, b)):
+        if x != y:
+            return i
+    return None if len(a) == len(b) else min(len(a), len(b))
+
+
 def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64, grouper=None,
-                         use_cache=True, amp=None, warmup=1, log_every=0):
+                         use_cache=True, amp=None, warmup=1, log_every=0, fp32_check_n=20):
     """One INTERFACES §10 spec_decode entry per policy, over the same prompts. Greedy runs once.
+
+    Besides outputs_match_greedy (every prompt identical), each entry reports match_rate (share of
+    prompts identical) and max_mismatch_margin (largest greedy top-2 logit margin at a point where
+    the outputs diverged: tiny values mean low-precision rounding flipped a near-tie). With amp
+    (e.g. fp16 autocast over fp32 weights, Kaggle T4), fp32_check re-runs the first fp32_check_n
+    prompts with amp off; there the outputs must be identical, or the engine has a bug.
     log_every > 0 prints progress every that many prompts (long Kaggle runs)."""
     t_start = time.perf_counter()
 
@@ -217,26 +234,34 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
     model.eval()
     for p in prompts[:warmup]:                      # CUDA kernels / allocator warm-up, not timed
         greedy_generate(model, tokenizer, p, 8, use_cache=use_cache, amp=amp)
-    greedy_ids, greedy_tokens, greedy_secs = [], 0, 0.0
+    greedy_ids, greedy_margins, greedy_tokens, greedy_secs = [], [], 0, 0.0
     for i, p in enumerate(prompts, 1):
         ids, st = greedy_generate(model, tokenizer, p, max_new_tokens, use_cache=use_cache, amp=amp)
         progress("greedy", i)
         greedy_ids.append(ids)
+        greedy_margins.append(st["margins"])
         greedy_tokens += st["tokens"]
         greedy_secs += st["seconds"]
     greedy_tps = greedy_tokens / greedy_secs if greedy_secs > 0 else 0.0
 
+    check_prompts = prompts[:fp32_check_n] if amp is not None else []
+    check_ref = [greedy_generate(model, tokenizer, p, max_new_tokens, use_cache=use_cache)[0] for p in check_prompts]
+
     results = []
     k = model.num_heads
     for policy in policies:
-        tokens = steps = hits = spans = 0
+        tokens = steps = hits = spans = n_match = 0
         secs = 0.0
         prop, acc = [0] * (k - 1), [0] * (k - 1)
-        match = True
+        div_margins = []
         for i, (p, ref) in enumerate(zip(prompts, greedy_ids), 1):
             ids, st = generate(model, tokenizer, p, max_new_tokens, policy, grouper, use_cache=use_cache, amp=amp)
             progress(policy.name, i)
-            match &= ids == ref
+            d = first_divergence(ids, ref)
+            if d is None:
+                n_match += 1
+            elif d < len(greedy_margins[i - 1]):
+                div_margins.append(greedy_margins[i - 1][d])
             tokens += st["tokens"]
             steps += st["steps"]
             secs += st["seconds"]
@@ -244,6 +269,12 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
             spans += st["gi_spans"]
             prop = [a + b for a, b in zip(prop, st["proposed"])]
             acc = [a + b for a, b in zip(acc, st["accepted"])]
+        fp32_check = None
+        if check_prompts:
+            same = sum(generate(model, tokenizer, p, max_new_tokens, policy, grouper, use_cache=use_cache)[0] == ref
+                       for p, ref in zip(check_prompts, check_ref))
+            fp32_check = {"n_prompts": len(check_prompts), "match_rate": same / len(check_prompts),
+                          "outputs_match_greedy": same == len(check_prompts)}
         tps = tokens / secs if secs > 0 else 0.0
         results.append({
             "policy": policy.name,
@@ -251,7 +282,10 @@ def evaluate_spec_decode(model, tokenizer, prompts, policies, max_new_tokens=64,
             "accept_rate_per_head": [a / q if q else None for a, q in zip(acc, prop)],
             "tokens_per_sec": tps, "greedy_tokens_per_sec": greedy_tps,
             "speedup": tps / greedy_tps if greedy_tps > 0 else None,
-            "outputs_match_greedy": bool(match),
+            "outputs_match_greedy": n_match == len(prompts),
+            "match_rate": n_match / len(prompts) if prompts else None,
+            "max_mismatch_margin": max(div_margins) if div_margins else None,
+            "fp32_check": fp32_check,
             "group_integrity": hits / spans if spans else None,
             "n_prompts": len(prompts),
         })

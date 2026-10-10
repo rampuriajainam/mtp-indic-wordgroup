@@ -249,7 +249,7 @@ def test_evaluate_spec_decode_section10(tiny_model_dir, tmp_path, tiny_tok):
     assert [r["policy"] for r in res] == ["fixed_k", "confidence_cut"]
     for r in res:
         assert set(r) == {"policy", "mean_accepted_len", "accept_rate_per_head", "tokens_per_sec",
-                          "greedy_tokens_per_sec", "speedup", "outputs_match_greedy", "group_integrity", "n_prompts"}
+                          "greedy_tokens_per_sec", "speedup", "outputs_match_greedy", "group_integrity", "n_prompts", "match_rate", "max_mismatch_margin", "fp32_check"}
         assert r["outputs_match_greedy"] is True and r["n_prompts"] == 3
         assert len(r["accept_rate_per_head"]) == 3 and r["mean_accepted_len"] >= 1.0
 
@@ -259,3 +259,49 @@ def test_make_prompts_deterministic(tiny_tok):
     a = make_prompts(texts, tiny_tok, n=10, seed=0)
     assert a == make_prompts(texts, tiny_tok, n=10, seed=0)
     assert all(8 <= len(p) <= 16 for p in a) and len(a) >= 2   # the 5-word sentence is skipped
+
+
+def test_mismatch_accounting_and_fp32_check(tiny_model_dir, tmp_path, monkeypatch):
+    """A divergence is counted per prompt, with greedy's top-2 margin at the divergence; with amp the
+    first fp32_check_n prompts are re-run without it."""
+    import contextlib
+    from mtp.eval import spec_decode as sd
+
+    model, tok = _tiny_model(tiny_model_dir, tmp_path, "resblock")
+    prompts = [[5, 6, 7], [8, 9], [10, 11, 12, 13]]
+    real_generate = sd.generate
+    calls = {"n": 0}
+
+    def flaky_generate(model_, tok_, prompt, *a, amp=None, **kw):
+        ids, st = real_generate(model_, tok_, prompt, *a, amp=amp, **kw)
+        if prompt == prompts[1] and amp is not None:        # corrupt token 2 of prompt 1, only "under amp"
+            calls["n"] += 1
+            ids = ids[:2] + [(ids[2] + 1) % len(tok_)] + ids[3:]
+        return ids, st
+
+    monkeypatch.setattr(sd, "generate", flaky_generate)
+    amp = contextlib.nullcontext
+    res = sd.evaluate_spec_decode(model, tok, prompts, [FixedK()], max_new_tokens=6, amp=amp, fp32_check_n=2)[0]
+    _, gst = sd.greedy_generate(model, tok, prompts[1], 6)
+    assert res["outputs_match_greedy"] is False and res["match_rate"] == pytest.approx(2 / 3)
+    assert res["max_mismatch_margin"] == pytest.approx(gst["margins"][2], abs=1e-4)
+    assert res["fp32_check"] == {"n_prompts": 2, "match_rate": 1.0, "outputs_match_greedy": True}
+    assert calls["n"] == 1
+
+    clean = sd.evaluate_spec_decode(model, tok, prompts, [FixedK()], max_new_tokens=6)[0]   # no amp
+    assert clean["outputs_match_greedy"] is True and clean["match_rate"] == 1.0
+    assert clean["max_mismatch_margin"] is None and clean["fp32_check"] is None
+
+
+def test_first_divergence():
+    from mtp.eval.spec_decode import first_divergence
+
+    assert first_divergence([1, 2, 3], [1, 2, 3]) is None
+    assert first_divergence([1, 2, 3], [1, 5, 3]) == 1
+    assert first_divergence([1, 2], [1, 2, 3]) == 2
+
+
+def test_greedy_margins(tiny_model_dir, tmp_path):
+    model, tok = _tiny_model(tiny_model_dir, tmp_path, "resblock")
+    ids, st = greedy_generate(model, tok, [5, 6], 5)
+    assert len(st["margins"]) == len(ids) and all(m >= 0 for m in st["margins"])
