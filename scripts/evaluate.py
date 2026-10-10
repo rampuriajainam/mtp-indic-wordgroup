@@ -69,12 +69,14 @@ def grouper_for_lang(spec, lang):
 
 def resolve_ignore_eos(value, cfg):
     """auto: on for a frozen backbone on an instruct base model (it keeps stopping at EOS after one
-    sentence); LoRA-tuned runs (R9) and base models (ganga-1b) run to max_new_tokens anyway."""
+    sentence); LoRA-tuned runs (R9), frozen runs whose LoRA comes from a tuned run (init_lora_from,
+    e.g. Rsd_r8 from R8) and base models (ganga-1b) run to max_new_tokens anyway."""
     if value in (True, "on"):
         return True
     if value in (False, "off", None):
         return False
-    return bool(cfg_get(cfg, "freeze_backbone", False)) and "instruct" in str(cfg.model_name).lower()
+    return (bool(cfg_get(cfg, "freeze_backbone", False)) and not cfg_get(cfg, "init_lora_from")
+            and "instruct" in str(cfg.model_name).lower())
 
 
 def resolve_grouper(name, lang):
@@ -258,7 +260,8 @@ def main(argv=None):
     ap.add_argument("--fp32_check_n", type=int, default=20,
                     help="under fp16 autocast, re-run this many prompts in fp32: outputs must equal greedy")
     ap.add_argument("--ignore_eos", choices=["auto", "on", "off"], default="auto",
-                    help="mask EOS for head 0 in spec decode; auto = frozen backbone on an instruct model")
+                    help="mask EOS for head 0 in spec decode; auto = frozen backbone on an instruct model, "
+                         "no init_lora_from")
     ap.add_argument("--device", default="auto")
     ap.add_argument("--batch_size", type=int, default=None, help="default: optim.batch_size of the run")
     ap.add_argument("--n", type=int, default=None, help="cap sentences per dataset (smoke tests)")

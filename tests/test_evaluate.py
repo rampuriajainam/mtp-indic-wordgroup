@@ -136,6 +136,9 @@ def test_resolve_ignore_eos(evaluate):
     assert evaluate.resolve_ignore_eos("auto", frozen_instruct) is True     # Rsd_mr
     assert evaluate.resolve_ignore_eos("auto", lora_instruct) is False      # R9
     assert evaluate.resolve_ignore_eos("auto", frozen_base) is False        # Rsd (Hindi)
+    from_r8 = SimpleNamespace(freeze_backbone=True, model_name="smallstepai/Misal-1B-instruct-v0.1",
+                              init_lora_from="/kaggle/input/mtp-run-r8/R8_mr_ntp")
+    assert evaluate.resolve_ignore_eos("auto", from_r8) is False            # Rsd_r8: LoRA from R8
     assert evaluate.resolve_ignore_eos("on", frozen_base) is True
     assert evaluate.resolve_ignore_eos("off", frozen_instruct) is False
 

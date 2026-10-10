@@ -45,7 +45,6 @@ def _step_state(out, pos, tokenizer, grouper, step):
             "tokenizer": tokenizer, "grouper": grouper, "step": step}
 
 
-@torch.no_grad()
 def _no_eos(logits, eos):
     """logits with the EOS column at -inf (ignore_eos), else unchanged; works on [V] and [n, V]."""
     if eos is None:
@@ -55,6 +54,7 @@ def _no_eos(logits, eos):
     return logits
 
 
+@torch.no_grad()
 def generate(model, tokenizer, prompt_ids, max_new_tokens, policy, grouper=None, *, use_cache=True, amp=None,
              ignore_eos=False):
     """Returns (generated ids, stats). Output == greedy decoding with head 0.

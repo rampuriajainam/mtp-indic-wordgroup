@@ -109,6 +109,29 @@ def test_max_new_tokens_and_eos():
     assert ids == [1, 2, 3, 4] == greedy_generate(model, tok, [0], 20)[0]
 
 
+def test_generation_runs_without_autograd():
+    """generate / greedy_generate must not build autograd graphs (slower and more memory = an
+    understated speed-up); evaluate.py opens no no_grad context of its own."""
+    model = CountingModel(num_heads=4, right=True)
+    seen = []
+    forward, base = model.forward, model.base_model
+
+    def spy_forward(*a, **kw):
+        seen.append(torch.is_grad_enabled())
+        return forward(*a, **kw)
+
+    def spy_base(*a, **kw):
+        seen.append(torch.is_grad_enabled())
+        return base(*a, **kw)
+
+    model.forward, model.base_model = spy_forward, spy_base
+    assert torch.is_grad_enabled()
+    generate(model, TOK, [0], 8, FixedK())
+    generate(model, TOK, [0], 8, FixedK(), ignore_eos=True)
+    greedy_generate(model, TOK, [0], 8)
+    assert seen and not any(seen)
+
+
 @pytest.mark.parametrize("use_cache", [True, False])
 def test_ignore_eos_runs_to_max_new_tokens(use_cache):
     model = CountingModel(num_heads=4, right=True)
