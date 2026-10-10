@@ -222,3 +222,15 @@ def test_draft_chain_matches_teacher_forced_argmax():
     assert len(drafts) == 3
     for d in range(1, 4):
         assert int(tf[d][0, t].argmax()) == drafts[d - 1]
+
+
+@pytest.mark.parametrize("head_type", ["resblock", "seq"])
+def test_extra_heads_false_gives_head0_only(head_type):
+    model = MTPModel(tiny_base(), num_heads=3, head_type=head_type).eval()
+    ids, mask = batch()
+    with torch.no_grad():
+        full = model(ids, attention_mask=mask)
+        h0 = model(ids, attention_mask=mask, extra_heads=False)
+    assert len(h0.logits) == 1
+    torch.testing.assert_close(h0.logits[0], full.logits[0])
+    torch.testing.assert_close(h0.hidden, full.hidden)

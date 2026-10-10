@@ -151,7 +151,8 @@ class MTPModel(nn.Module):
     def _lm_head(self):
         return self.base_model.get_output_embeddings()
 
-    def forward(self, input_ids, attention_mask=None, use_cache: bool = False, **kw) -> MTPOutput:
+    def forward(self, input_ids, attention_mask=None, use_cache: bool = False, extra_heads: bool = True,
+                **kw) -> MTPOutput:
         out = self._decoder()(
             input_ids=input_ids,
             attention_mask=attention_mask,
@@ -165,7 +166,8 @@ class MTPModel(nn.Module):
         head_hidden = [hidden]
         a = self.backbone_grad
         h_in = hidden if a == 1.0 else (hidden.detach() if a == 0.0 else a * hidden + (1 - a) * hidden.detach())
-        if self.head_type == "seq":
+        # extra_heads=False: head 0 only (decoding with seq heads, whose drafts come from draft_chain)
+        if extra_heads and self.head_type == "seq":
             emb = self.base_model.get_input_embeddings()(input_ids).detach()
             s = h_in
             for d, head in enumerate(self.extra_heads, start=1):
@@ -175,7 +177,7 @@ class MTPModel(nn.Module):
                 s = head(s, e.to(s.dtype))
                 logits.append(lm_head(s))
                 head_hidden.append(s)
-        else:
+        elif extra_heads:
             for head in self.extra_heads:
                 if self.head_type == "linear":
                     logits.append(head(h_in))
@@ -193,14 +195,17 @@ class MTPModel(nn.Module):
         return MTPOutput(logits=logits, hidden=hidden, aux=aux)
 
     @torch.no_grad()
-    def draft_chain(self, h, t0: int, n: int) -> list[int]:
+    def draft_chain(self, h, t0: int, n: int, return_logits: bool = False):
         """Greedy chain drafts for head_type "seq": h = last hidden state [H] at the position whose
-        head-0 token is t0. Returns the n drafted tokens for t+2 .. t+n+1."""
+        head-0 token is t0. Returns the n drafted tokens for t+2 .. t+n+1 (and, with return_logits,
+        the logits [V] each draft was taken from)."""
         embed, lm_head = self.base_model.get_input_embeddings(), self._lm_head()
-        s, tok, out = h, t0, []
+        s, tok, out, logits = h, t0, [], []
         for head in self.extra_heads[:n]:
             e = embed(torch.tensor([tok], device=h.device))[0]
             s = head(s, e.to(s.dtype))
-            tok = int(lm_head(s).argmax())
+            lg = lm_head(s)
+            tok = int(lg.argmax())
             out.append(tok)
-        return out
+            logits.append(lg)
+        return (out, logits) if return_logits else out
