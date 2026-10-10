@@ -1,0 +1,23 @@
+# Rsd_seq_s43: = Rsd_seq, seed 43 + data.shuffle (replicate of the sequential-heads gain)
+# Run matrix: docs/plan/README.md §6. Fields: INTERFACES §6 (+ optional: head_layers, optim.grad_accum,
+# optim.weight_decay, data.eval_n, weighting.head_decay, log_every). TBD = decided later; train.py fails loudly on it.
+run_name: Rsd_hi_k4_frozen_sd_seq_s43
+lang: hi
+model_name: LingoIITGN/ganga-1b
+num_heads: 4
+head_type: seq
+head_layers: 1
+freeze_backbone: true   # Medusa-1: LoRA frozen, head 0 = base model exactly
+head_backbone_grad: 0.1   # extra heads send 10% of their gradient into LoRA (2k-step pilot: head 0 +0.011 vs R0)
+lora: {r: 8, alpha: 16, dropout: 0.05, targets: [q_proj, v_proj]}
+optim: {lr: 2.0e-4, batch_size: 8, grad_clip: 1.0, max_steps: 12500, grad_accum: 1, weight_decay: 0.01}
+data: {cache_dir: /kaggle/input/mtp-boundary-cache, grouper: hi_rules_v0, max_length: 128, eval_split: eval, eval_n: 1000, train_file: /kaggle/working/sd/hi_sd.jsonl, shuffle: true}  # -> hi_rules_v1 when JI-1 lands
+losses:
+  structural: {enabled: false, variant: null, weight: 1.0}
+  contrastive: {enabled: false, weight: 0.05, temperature: 0.1}
+weighting: {scheme: fixed, head_decay: 0.8}
+log_every: 20
+eval_every: 1000
+save_every: 500
+seed: 43
+dtype: auto
